@@ -1,19 +1,30 @@
-const planets = [
-    { name: 'Merkür', gravity: 3.7, escapeVelocity: 4.3, color: '#8c8c8c' },
-    { name: 'Venüs', gravity: 8.87, escapeVelocity: 10.3, color: '#e6b800' },
-    { name: 'Dünya', gravity: 9.81, escapeVelocity: 11.2, color: '#4da6ff' },
-    { name: 'Mars', gravity: 3.71, escapeVelocity: 5.0, color: '#ff6666' },
-    { name: 'Jüpiter', gravity: 24.79, escapeVelocity: 60, color: '#d9b38c' },
-    { name: 'Satürn', gravity: 10.44, escapeVelocity: 36, color: '#e6ccb3' },
-    { name: 'Uranüs', gravity: 8.69, escapeVelocity: 22, color: '#99ccff' },
-    { name: 'Neptün', gravity: 11.15, escapeVelocity: 24, color: '#6666ff' },
-    { name: 'Plüton', gravity: 0.62, escapeVelocity: 2.3, color: '#c2c2a3' }
+// ==== ROKET VE GEZEGEN VERİLERİ ====
+const PLANETS = {
+    'Merkür':  { gravity: 3.7,  escapeVelocity: 4.3,  color: '#8c8c8c' },
+    'Venüs':   { gravity: 8.87, escapeVelocity: 10.3, color: '#e6b800' },
+    'Dünya':   { gravity: 9.81, escapeVelocity: 11.2, color: '#4da6ff' },
+    'Mars':    { gravity: 3.71, escapeVelocity: 5.0,  color: '#ff6666' },
+    'Jüpiter': { gravity: 24.79,escapeVelocity: 60,   color: '#d9b38c' },
+    'Satürn':  { gravity: 10.44,escapeVelocity: 36,   color: '#e6ccb3' },
+    'Uranüs':  { gravity: 8.69, escapeVelocity: 22,   color: '#99ccff' },
+    'Neptün':  { gravity: 11.15,escapeVelocity: 24,   color: '#6666ff' },
+    'Plüton':  { gravity: 0.62, escapeVelocity: 2.3,  color: '#c2c2a3' }
+};
+
+const ROCKETS = [
+    { name: 'Saturn V',       planet: 'Merkür',  mass: 2970000, thrust: 35100 },
+    { name: 'Falcon 9',       planet: 'Venüs',   mass: 549054,  thrust: 7607  },
+    { name: 'Ariane 5',       planet: 'Dünya',   mass: 777000,  thrust: 13000 },
+    { name: 'Soyuz-FG',       planet: 'Mars',    mass: 305000,  thrust: 4000  },
+    { name: 'Long March 5',   planet: 'Jüpiter', mass: 867000,  thrust: 10565 },
+    { name: 'H-IIA',          planet: 'Satürn',  mass: 289000,  thrust: 4000  },
+    { name: 'Delta IV Heavy', planet: 'Uranüs',  mass: 733000,  thrust: 9480  },
+    { name: 'Proton-M',       planet: 'Neptün',  mass: 705000,  thrust: 10532 },
+    { name: 'Electron',       planet: 'Plüton',  mass: 13000,   thrust: 162   }
 ];
 
 const rocketCount = 9;
-const controlsContainer = document.getElementById('rocket-controls');
-const launchAllBtn = document.getElementById('launch-all');
-const resetAllBtn = document.getElementById('reset-all');
+const MASTER_PASSWORD = '1234';
 
 // ==== SES MOTORU ====
 let audioCtx = null;
@@ -22,18 +33,18 @@ function getAudioCtx() {
     if (audioCtx.state === 'suspended') audioCtx.resume();
     return audioCtx;
 }
-function playBeep(frequency = 800, duration = 0.15) {
+function playBeep(frequency = 800, duration = 0.15, volume = 0.2) {
     try {
         const c = getAudioCtx();
         const osc = c.createOscillator();
         const gain = c.createGain();
         osc.type = 'sine';
         osc.frequency.value = frequency;
-        gain.gain.setValueAtTime(0.2, c.currentTime);
+        gain.gain.setValueAtTime(volume, c.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration);
         osc.connect(gain); gain.connect(c.destination);
         osc.start(); osc.stop(c.currentTime + duration);
-    } catch (e) { console.warn('Ses hatası:', e); }
+    } catch (e) {}
 }
 function playLaunchSound() {
     try {
@@ -47,88 +58,179 @@ function playLaunchSound() {
         gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 2.5);
         osc.connect(gain); gain.connect(c.destination);
         osc.start(); osc.stop(c.currentTime + 2.5);
-    } catch (e) { console.warn('Ses hatası:', e); }
+    } catch (e) {}
+}
+function playClickSound() { playBeep(900, 0.08, 0.15); }
+function playWarningSound() {
+    playBeep(400, 0.12, 0.2);
+    setTimeout(() => playBeep(400, 0.12, 0.2), 160);
+}
+function playSuccessSound() {
+    try {
+        const c = getAudioCtx();
+        [523, 659, 784, 1047].forEach((f, i) => {
+            const osc = c.createOscillator();
+            const gain = c.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = f;
+            const t = c.currentTime + i * 0.1;
+            gain.gain.setValueAtTime(0.15, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+            osc.connect(gain); gain.connect(c.destination);
+            osc.start(t); osc.stop(t + 0.3);
+        });
+    } catch (e) {}
 }
 
-// ==== ARAYÜZ ====
-function createRocketCards() {
-    for (let i = 0; i < rocketCount; i++) {
-        const card = document.createElement('div');
-        card.className = 'rocket-card idle';
-        card.id = `rocket-card-${i}`;
+// ==== SESLİ GERİ SAYIM ====
+function speak(text) {
+    if (!('speechSynthesis' in window)) return;
+    try {
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'tr-TR';
+        u.rate = 1.0;
+        u.volume = 1.0;
+        speechSynthesis.speak(u);
+    } catch (e) {}
+}
 
-        const info = document.createElement('div');
-        info.className = 'rocket-info';
-        info.innerHTML = `<span class="rocket-name">Roket ${i + 1}</span><span class="rocket-planet">${planets[i].name}</span>`;
+// ==== GİRİŞ EKRANI ====
+const loginScreen = document.getElementById('login-screen');
+const controlPanel = document.getElementById('control-panel');
+const passwordInput = document.getElementById('password-input');
+const loginBtn = document.getElementById('login-btn');
+const loginError = document.getElementById('login-error');
 
-        const actions = document.createElement('div');
-        actions.className = 'rocket-actions';
+function checkAuth() {
+    if (localStorage.getItem('roket_auth') === 'ok') {
+        loginScreen.style.display = 'none';
+        controlPanel.style.display = 'block';
+        return true;
+    }
+    return false;
+}
 
-        const status = document.createElement('span');
-        status.className = 'rocket-status idle';
-        status.id = `status-${i}`;
-        status.textContent = 'Bekliyor';
-
-        const launchBtn = document.createElement('button');
-        launchBtn.className = 'launch-btn';
-        launchBtn.id = `launch-btn-${i}`;
-        launchBtn.textContent = 'Ateşle';
-        launchBtn.onclick = () => startCountdown(i);
-
-        const resetBtn = document.createElement('button');
-        resetBtn.className = 'reset-btn';
-        resetBtn.id = `reset-btn-${i}`;
-        resetBtn.textContent = 'Sıfırla';
-        resetBtn.onclick = () => resetRocket(i);
-
-        actions.append(status, launchBtn, resetBtn);
-        card.append(info, actions);
-        controlsContainer.appendChild(card);
+function attemptLogin() {
+    if (passwordInput.value === MASTER_PASSWORD) {
+        localStorage.setItem('roket_auth', 'ok');
+        playSuccessSound();
+        loginScreen.style.display = 'none';
+        controlPanel.style.display = 'block';
+        init();
+    } else {
+        loginError.textContent = '❌ Hatalı şifre!';
+        playWarningSound();
+        loginScreen.querySelector('.login-box').classList.add('shake');
+        setTimeout(() => loginScreen.querySelector('.login-box').classList.remove('shake'), 400);
+        passwordInput.value = '';
     }
 }
 
-// ==== FIRESTORE İŞLEMLERİ ====
-// Artık status kontrolü yapmıyoruz. Her tıklama doğrudan 'countdown' yazar.
+loginBtn.onclick = attemptLogin;
+passwordInput.addEventListener('keypress', e => { if (e.key === 'Enter') attemptLogin(); });
+
+// ==== ARAYÜZ ====
+const controlsContainer = document.getElementById('rocket-controls');
+const launchAllBtn = document.getElementById('launch-all');
+const stopAllBtn = document.getElementById('stop-all');
+const resetAllBtn = document.getElementById('reset-all');
+const headerTime = document.getElementById('header-time');
+
+function createRocketTiles() {
+    controlsContainer.innerHTML = '';
+    for (let i = 0; i < rocketCount; i++) {
+        const r = ROCKETS[i];
+        const planetColor = PLANETS[r.planet].color;
+
+        const tile = document.createElement('div');
+        tile.className = 'rocket-tile idle';
+        tile.id = `rocket-tile-${i}`;
+
+        tile.innerHTML = `
+            <div class="tile-header">
+                <div class="tile-live">
+                    <span class="tile-live-dot"></span>LIVE
+                </div>
+                <div class="tile-name">${r.name.toUpperCase()}</div>
+            </div>
+            <div class="tile-body">
+                <div class="tile-rocket-icon">🚀</div>
+                <div class="tile-status idle" id="tile-status-${i}">BEKLİYOR</div>
+            </div>
+            <div class="tile-planet-row">
+                <span class="tile-planet-dot" style="background:${planetColor}; box-shadow: 0 0 8px ${planetColor};"></span>
+                📍 ${r.planet.toUpperCase()}
+            </div>
+            <div class="tile-actions">
+                <button class="tile-btn launch" id="launch-btn-${i}">🚀 ATEŞLE</button>
+                <button class="tile-btn reset" id="reset-btn-${i}">🔄</button>
+            </div>
+        `;
+
+        controlsContainer.appendChild(tile);
+
+        // Event listener'lar
+        document.getElementById(`launch-btn-${i}`).onclick = () => startCountdown(i);
+        document.getElementById(`reset-btn-${i}`).onclick = () => resetRocket(i);
+    }
+}
+
+// Saat güncelle
+function updateClock() {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    headerTime.textContent = `${hh}:${mm}:${ss}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ==== FIRESTORE ====
 async function startCountdown(id) {
+    playClickSound();
     try {
-        const docRef = db.collection('rockets').doc(`rocket${id}`);
-        await docRef.update({
+        await db.collection('rockets').doc(`rocket${id}`).update({
             status: 'countdown',
             countdownStart: firebase.firestore.FieldValue.serverTimestamp()
         });
     } catch (e) {
-        console.warn('Ateşleme hatası (rocket' + id + '):', e);
-        // Belge yoksa oluştur
         try {
             await db.collection('rockets').doc(`rocket${id}`).set({
-                planet: planets[id].name,
+                planet: ROCKETS[id].planet,
+                name: ROCKETS[id].name,
                 status: 'countdown',
                 countdownStart: firebase.firestore.FieldValue.serverTimestamp()
             });
-        } catch (e2) { console.error(e2); }
+        } catch (e2) {}
     }
 }
 
-async function resetRocket(id) {
+async function stopRocket(id) {
     try {
         await db.collection('rockets').doc(`rocket${id}`).update({
             status: 'idle',
             launchTime: null
         });
-    } catch (e) {
-        try {
-            await db.collection('rockets').doc(`rocket${id}`).set({
-                planet: planets[id].name,
-                status: 'idle',
-                launchTime: null
-            });
-        } catch (e2) { console.error(e2); }
-    }
+    } catch (e) {}
+}
+
+async function resetRocket(id) {
+    playClickSound();
+    await stopRocket(id);
 }
 
 async function launchAll() {
     for (let i = 0; i < rocketCount; i++) {
         await startCountdown(i);
+    }
+}
+
+async function stopAll() {
+    playBeep(400, 0.2, 0.25);
+    for (let i = 0; i < rocketCount; i++) {
+        await stopRocket(i);
     }
 }
 
@@ -138,29 +240,33 @@ async function resetAll() {
     }
 }
 
-// ==== GERİ SAYIM ====
+// ==== GERİ SAYIM (Master) ====
 const activeCountdowns = {};
 
 function runCountdown(id) {
     if (activeCountdowns[id]) return;
     activeCountdowns[id] = true;
     let count = 3;
-    playBeep(600, 0.2);
+    playWarningSound();
+    speak('Üç');
 
     const tick = () => {
         if (count > 1) {
             count--;
-            playBeep(600, 0.2);
+            const words = { 2: 'İki', 1: 'Bir' };
+            speak(words[count] || String(count));
+            playWarningSound();
             setTimeout(tick, 1000);
         } else {
             setTimeout(async () => {
+                speak('Ateş!');
                 playLaunchSound();
                 try {
                     await db.collection('rockets').doc(`rocket${id}`).update({
                         status: 'launching',
                         launchTime: firebase.firestore.FieldValue.serverTimestamp()
                     });
-                } catch (e) { console.warn(e); }
+                } catch (e) {}
                 delete activeCountdowns[id];
             }, 1000);
         }
@@ -182,36 +288,35 @@ function listenToRockets() {
 }
 
 function updateRocketUI(id, status) {
-    const card = document.getElementById(`rocket-card-${id}`);
-    const statusEl = document.getElementById(`status-${id}`);
+    const tile = document.getElementById(`rocket-tile-${id}`);
+    const statusEl = document.getElementById(`tile-status-${id}`);
     const launchBtn = document.getElementById(`launch-btn-${id}`);
     const resetBtn = document.getElementById(`reset-btn-${id}`);
-    if (!card || !statusEl || !launchBtn || !resetBtn) return;
+    if (!tile || !statusEl || !launchBtn || !resetBtn) return;
 
-    card.className = `rocket-card ${status}`;
-    statusEl.className = `rocket-status ${status}`;
+    tile.className = `rocket-tile ${status}`;
+    statusEl.className = `tile-status ${status}`;
 
     if (status === 'idle') {
-        statusEl.textContent = 'Bekliyor';
+        statusEl.textContent = 'BEKLİYOR';
         launchBtn.disabled = false;
         resetBtn.disabled = true;
     } else if (status === 'countdown') {
-        statusEl.textContent = 'Geri Sayım';
+        statusEl.textContent = 'GERİ SAYIM';
         launchBtn.disabled = true;
         resetBtn.disabled = false;
     } else if (status === 'launching') {
-        statusEl.textContent = 'Ateşlendi';
+        statusEl.textContent = 'ATEŞLENDİ';
         launchBtn.disabled = true;
         resetBtn.disabled = false;
     } else if (status === 'launched') {
-        statusEl.textContent = 'Tamamlandı';
+        statusEl.textContent = 'TAMAMLANDI';
         launchBtn.disabled = false;
         resetBtn.disabled = false;
     }
 }
 
-// ==== SAYFA AÇILIŞINDA TEMİZLİK ====
-// Firestore'da takılı kalmış countdown/launching durumlarını idle'a çevir
+// ==== TEMİZLİK ====
 async function cleanupStuckRockets() {
     for (let i = 0; i < rocketCount; i++) {
         const docRef = db.collection('rockets').doc(`rocket${i}`);
@@ -219,7 +324,8 @@ async function cleanupStuckRockets() {
             const doc = await docRef.get();
             if (!doc.exists) {
                 await docRef.set({
-                    planet: planets[i].name,
+                    planet: ROCKETS[i].planet,
+                    name: ROCKETS[i].name,
                     status: 'idle',
                     launchTime: null
                 });
@@ -228,18 +334,29 @@ async function cleanupStuckRockets() {
                 if (data.status === 'countdown' || data.status === 'launching') {
                     await docRef.update({ status: 'idle', launchTime: null });
                 }
+                // Eski ismi güncelle
+                if (data.name !== ROCKETS[i].name) {
+                    await docRef.update({ name: ROCKETS[i].name, planet: ROCKETS[i].planet });
+                }
             }
-        } catch (e) { console.warn('Cleanup hatası rocket' + i + ':', e); }
+        } catch (e) {}
     }
 }
 
 // ==== BAŞLATMA ====
+let initialized = false;
 function init() {
-    createRocketCards();
+    if (initialized) return;
+    initialized = true;
+    createRocketTiles();
     launchAllBtn.onclick = launchAll;
+    stopAllBtn.onclick = stopAll;
     resetAllBtn.onclick = resetAll;
     listenToRockets();
     cleanupStuckRockets();
+    document.body.addEventListener('click', () => getAudioCtx(), { once: true });
 }
 
-init();
+if (checkAuth()) {
+    init();
+}

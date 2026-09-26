@@ -7,11 +7,35 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="control-page">
-    <div id="control-panel">
-        <h1>🚀 Roket Kontrol Merkezi</h1>
-        <button id="launch-all" class="launch-all-btn">🔥 TÜMÜNÜ ATEŞLE</button>
+    <div id="login-screen" class="login-screen">
+        <div class="login-box">
+            <div class="login-icon">🔐</div>
+            <h1>Kontrol Merkezi</h1>
+            <p>Yetkili giriş gereklidir</p>
+            <input type="password" id="password-input" placeholder="Şifre" autocomplete="off">
+            <button id="login-btn">GİRİŞ YAP</button>
+            <div id="login-error" class="login-error"></div>
+        </div>
+    </div>
+
+    <div id="control-panel" style="display: none;">
+        <div class="panel-header">
+            <div class="live-badge">
+                <span class="live-dot"></span> CANLI YAYIN
+            </div>
+            <h1>🚀 ROKET KONTROL MERKEZİ</h1>
+            <div class="header-time" id="header-time">--:--</div>
+        </div>
+
+        <div class="master-buttons">
+            <button id="launch-all" class="master-btn launch-all">🔥 TÜMÜNÜ ATEŞLE</button>
+            <button id="stop-all" class="master-btn stop-all">⏹ TÜMÜNÜ DURDUR</button>
+            <button id="reset-all" class="master-btn reset-all">🔄 TÜMÜNÜ SIFIRLA</button>
+        </div>
+
         <div id="rocket-controls"></div>
     </div>
+
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="firebase-config.js"></script>

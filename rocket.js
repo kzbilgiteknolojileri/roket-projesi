@@ -20,120 +20,132 @@ const launchBtn = document.getElementById('launch-btn');
 const resetBtn = document.getElementById('reset-btn');
 const countdownOverlay = document.getElementById('countdown-overlay');
 const countdownNumber = document.getElementById('countdown-number');
+const successOverlay = document.getElementById('success-overlay');
+const infoSpeed = document.getElementById('info-speed');
+const infoAccel = document.getElementById('info-accel');
+const infoFuel = document.getElementById('info-fuel');
+const infoAltitude = document.getElementById('info-altitude');
+const infoTime = document.getElementById('info-time');
+
+// Ölçek: 1 piksel = 50 metre
+const PIXEL_TO_METERS = 50;
 
 let rocket = null;
 let animationId = null;
 let stars = [];
 let countdownTimer = null;
+let initialSnapshotDone = false;
+let isCountdownInitiator = false;
 
-// ---- Ses motoru ----
+// ==== SES MOTORU ====
 let audioCtx = null;
 function getAudioCtx() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
     return audioCtx;
 }
-
 function playBeep(frequency = 800, duration = 0.15) {
     try {
-        const ctx2 = getAudioCtx();
-        const osc = ctx2.createOscillator();
-        const gain = ctx2.createGain();
+        const c = getAudioCtx();
+        const osc = c.createOscillator();
+        const gain = c.createGain();
         osc.type = 'sine';
         osc.frequency.value = frequency;
-        gain.gain.setValueAtTime(0.2, ctx2.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx2.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(ctx2.destination);
-        osc.start();
-        osc.stop(ctx2.currentTime + duration);
+        gain.gain.setValueAtTime(0.2, c.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration);
+        osc.connect(gain); gain.connect(c.destination);
+        osc.start(); osc.stop(c.currentTime + duration);
     } catch (e) { console.warn('Ses hatası:', e); }
 }
-
 function playLaunchSound() {
     try {
-        const ctx2 = getAudioCtx();
-        // Düşük frekanslı gürültü + yükselen frekans
-        const osc = ctx2.createOscillator();
-        const gain = ctx2.createGain();
+        const c = getAudioCtx();
+        const osc = c.createOscillator();
+        const gain = c.createGain();
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(60, ctx2.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(180, ctx2.currentTime + 2.5);
-        gain.gain.setValueAtTime(0.25, ctx2.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx2.currentTime + 2.5);
-        osc.connect(gain);
-        gain.connect(ctx2.destination);
-        osc.start();
-        osc.stop(ctx2.currentTime + 2.5);
+        osc.frequency.setValueAtTime(60, c.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(180, c.currentTime + 2.5);
+        gain.gain.setValueAtTime(0.25, c.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 2.5);
+        osc.connect(gain); gain.connect(c.destination);
+        osc.start(); osc.stop(c.currentTime + 2.5);
 
-        // Gürültü efekti (whoosh)
-        const bufferSize = ctx2.sampleRate * 2.5;
-        const buffer = ctx2.createBuffer(1, bufferSize, ctx2.sampleRate);
+        const bufferSize = c.sampleRate * 2.5;
+        const buffer = c.createBuffer(1, bufferSize, c.sampleRate);
         const data = buffer.getChannelData(0);
         for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-        const noise = ctx2.createBufferSource();
+        const noise = c.createBufferSource();
         noise.buffer = buffer;
-        const noiseGain = ctx2.createGain();
-        noiseGain.gain.setValueAtTime(0.1, ctx2.currentTime);
-        noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx2.currentTime + 2.5);
-        const filter = ctx2.createBiquadFilter();
+        const noiseGain = c.createGain();
+        noiseGain.gain.setValueAtTime(0.1, c.currentTime);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 2.5);
+        const filter = c.createBiquadFilter();
         filter.type = 'lowpass';
         filter.frequency.value = 800;
-        noise.connect(filter);
-        filter.connect(noiseGain);
-        noiseGain.connect(ctx2.destination);
+        noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(c.destination);
         noise.start();
     } catch (e) { console.warn('Ses hatası:', e); }
 }
 
-// ---- Canvas boyutlandırma ----
+// ==== CANVAS BOYUTLANDIRMA ====
+function getGroundY() { return canvas.height - 90; }
 function resizeCanvas() {
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
-    if (rocket) rocket.recalculateAcceleration(canvas.height);
+    if (rocket) {
+        rocket.groundY = getGroundY();
+        if (rocket.status === 'idle') rocket.y = rocket.groundY - rocket.height / 2;
+        rocket.recalculateAcceleration();
+    }
 }
 window.addEventListener('resize', () => { resizeCanvas(); initStars(); });
 
-// ---- Roket sınıfı ----
+// ==== ROKET SINIFI ====
 class Rocket {
     constructor(id, planet) {
         this.id = id;
         this.planet = planet;
+        this.groundY = getGroundY();
+        this.width = 60;
+        this.height = 130;
         this.x = canvas.width / 2;
-        this.y = canvas.height - 80;
+        this.y = this.groundY - this.height / 2;
         this.vy = 0;
         this.status = 'idle';
         this.color = planet.color;
-        this.width = 40;
-        this.height = 80;
+        this.trail = [];
+        this.fuel = 100;
+        this.elapsedTime = 0;
         this.netAcceleration = 0;
-        this.trail = []; // Alev izi
-        this.recalculateAcceleration(canvas.height);
+        this.targetTime = 12;
+        this.recalculateAcceleration();
     }
 
-    recalculateAcceleration(canvasHeight) {
-        // Gezegene göre hız faktörü: kaçış hızı yüksekse daha hızlı kalkar
-        // Formül: 0.8 + 0.4 * (escapeVelocity / 60)
+    recalculateAcceleration() {
+        // Yolculuk mesafesi: mevcut y - hedef y (hedef, roket tamamen ekrandan çıksın)
+        const startY = this.groundY - this.height / 2;
+        const endY = -this.height;
+        const travelDistance = startY - endY;
+        // Gezegene göre hız faktörü
         const speedFactor = 0.8 + 0.4 * (this.planet.escapeVelocity / 60);
-        // Hedef süre: hız faktörüne göre 12 saniye civarı
-        // Jüpiter (factor 1.2)  -> 10 sn
-        // Plüton (factor 0.815) -> 14.7 sn
-        const targetTime = 12 / speedFactor;
-        this.netAcceleration = 2 * canvasHeight / (targetTime * targetTime);
-        this.targetTime = targetTime;
+        this.targetTime = 12 / speedFactor;
+        this.netAcceleration = 2 * travelDistance / (this.targetTime * this.targetTime);
     }
 
     reset() {
-        this.y = canvas.height - 80;
+        this.y = this.groundY - this.height / 2;
         this.vy = 0;
         this.status = 'idle';
         this.trail = [];
-        this.recalculateAcceleration(canvas.height);
+        this.fuel = 100;
+        this.elapsedTime = 0;
         if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
         statusMessage.textContent = `Bekleniyor... (${this.planet.name})`;
         statusMessage.style.color = '#aaa';
         launchBtn.disabled = false;
         resetBtn.disabled = true;
+        successOverlay.classList.remove('active');
+        updateInfoPanel();
         drawScene();
     }
 
@@ -141,10 +153,13 @@ class Rocket {
         this.status = 'launching';
         this.vy = 0;
         this.trail = [];
+        this.fuel = 100;
+        this.elapsedTime = 0;
         statusMessage.textContent = '🚀 Ateşlendi!';
         statusMessage.style.color = '#ffaa00';
         launchBtn.disabled = true;
         resetBtn.disabled = false;
+        successOverlay.classList.remove('active');
         if (animationId) cancelAnimationFrame(animationId);
         lastTime = 0;
         animationId = requestAnimationFrame(animate);
@@ -154,68 +169,179 @@ class Rocket {
         if (this.status === 'launching') {
             this.vy += this.netAcceleration * dt;
             this.y -= this.vy * dt;
+            this.elapsedTime += dt;
+
+            // Yakıt tüketimi
+            this.fuel = Math.max(0, 100 - (this.elapsedTime / this.targetTime) * 100);
 
             // Alev izi
-            this.trail.push({ x: this.x, y: this.y + this.height / 2, life: 1 });
-            if (this.trail.length > 80) this.trail.shift();
-            this.trail.forEach(t => t.life -= dt * 1.5);
+            this.trail.push({
+                x: this.x + (Math.random() - 0.5) * 10,
+                y: this.y + this.height / 2,
+                life: 1,
+                size: 6 + Math.random() * 10
+            });
+            if (this.trail.length > 120) this.trail.shift();
+            this.trail.forEach(t => t.life -= dt * 1.1);
             this.trail = this.trail.filter(t => t.life > 0);
 
-            if (this.y + this.height < 0) {
+            // Ekranın üstüne ulaştı mı?
+            if (this.y + this.height / 2 < 0) {
                 this.status = 'launched';
-                statusMessage.textContent = '✅ Görev Tamamlandı';
+                statusMessage.textContent = '';
                 statusMessage.style.color = '#00cc66';
                 launchBtn.disabled = false;
-                db.collection('rockets').doc(`rocket${this.id}`).update({ status: 'launched' });
+                resetBtn.disabled = false;
+                successOverlay.classList.add('active');
+                // Kısa bir gecikmeyle Firestore'u güncelle
+                setTimeout(() => {
+                    db.collection('rockets').doc(`rocket${this.id}`).update({ status: 'launched' });
+                }, 1500);
             }
         }
     }
 
+    // Renk karartma yardımcı
+    darken(color, factor) {
+        const hex = color.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        return `rgb(${Math.floor(r * factor)}, ${Math.floor(g * factor)}, ${Math.floor(b * factor)})`;
+    }
+
     draw() {
-        // Alev izi
+        // Alev izi (roketin arkasında kalan)
         this.trail.forEach(t => {
-            ctx.fillStyle = `rgba(255, 150, 50, ${t.life * 0.5})`;
+            const alpha = t.life * 0.6;
+            const gradient = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, t.size);
+            gradient.addColorStop(0, `rgba(255, 220, 100, ${alpha})`);
+            gradient.addColorStop(0.5, `rgba(255, 100, 0, ${alpha * 0.6})`);
+            gradient.addColorStop(1, `rgba(80, 80, 80, 0)`);
+            ctx.fillStyle = gradient;
             ctx.beginPath();
-            ctx.arc(t.x + (Math.random() - 0.5) * 10, t.y + (Math.random() - 0.5) * 20, 6 + Math.random() * 6, 0, Math.PI * 2);
+            ctx.arc(t.x, t.y, t.size, 0, Math.PI * 2);
             ctx.fill();
         });
 
         ctx.save();
         ctx.translate(this.x, this.y);
 
-        // Gövde
-        ctx.fillStyle = this.color;
+        const w = this.width;
+        const h = this.height;
+
+        // === YAN KANATÇIKLAR (FINS) ===
+        ctx.fillStyle = '#cc2222';
+        ctx.strokeStyle = '#881111';
+        ctx.lineWidth = 2;
+        // Sol kanatçık
         ctx.beginPath();
-        ctx.moveTo(0, -this.height / 2);
-        ctx.lineTo(this.width / 2, this.height / 2);
-        ctx.lineTo(-this.width / 2, this.height / 2);
+        ctx.moveTo(-w * 0.3, h * 0.1);
+        ctx.lineTo(-w * 0.7, h * 0.5);
+        ctx.lineTo(-w * 0.3, h * 0.45);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+        // Sağ kanatçık
+        ctx.beginPath();
+        ctx.moveTo(w * 0.3, h * 0.1);
+        ctx.lineTo(w * 0.7, h * 0.5);
+        ctx.lineTo(w * 0.3, h * 0.45);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+
+        // === NOZZLE (motor çıkışı) ===
+        ctx.fillStyle = '#3a3a3a';
+        ctx.beginPath();
+        ctx.moveTo(-w * 0.2, h * 0.4);
+        ctx.lineTo(-w * 0.32, h * 0.5);
+        ctx.lineTo(w * 0.32, h * 0.5);
+        ctx.lineTo(w * 0.2, h * 0.4);
+        ctx.closePath();
+        ctx.fill();
+        // Nozzle detay
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // === GÖVDE ===
+        const bodyGrad = ctx.createLinearGradient(-w * 0.3, 0, w * 0.3, 0);
+        bodyGrad.addColorStop(0, this.darken(this.color, 0.55));
+        bodyGrad.addColorStop(0.25, this.color);
+        bodyGrad.addColorStop(0.75, this.color);
+        bodyGrad.addColorStop(1, this.darken(this.color, 0.55));
+        ctx.fillStyle = bodyGrad;
+        ctx.fillRect(-w * 0.3, -h * 0.3, w * 0.6, h * 0.7);
+
+        // Gövde kenarı
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-w * 0.3, -h * 0.3, w * 0.6, h * 0.7);
+
+        // Beyaz şeritler
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.fillRect(-w * 0.3, -h * 0.05, w * 0.6, 4);
+        ctx.fillRect(-w * 0.3, h * 0.12, w * 0.6, 4);
+
+        // === BURUN KONİSİ ===
+        ctx.fillStyle = '#cc2222';
+        ctx.beginPath();
+        ctx.moveTo(0, -h * 0.5);
+        ctx.lineTo(w * 0.3, -h * 0.3);
+        ctx.lineTo(-w * 0.3, -h * 0.3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#881111';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // Burun parlaklığı
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.beginPath();
+        ctx.moveTo(-w * 0.15, -h * 0.42);
+        ctx.lineTo(0, -h * 0.5);
+        ctx.lineTo(-w * 0.05, -h * 0.32);
         ctx.closePath();
         ctx.fill();
 
-        // Kenar çizgisi
-        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Pencere
-        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        // === PENCERE ===
+        ctx.fillStyle = 'rgba(100, 180, 255, 0.95)';
         ctx.beginPath();
-        ctx.arc(0, -this.height / 4, 8, 0, Math.PI * 2);
+        ctx.arc(0, -h * 0.12, w * 0.15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        // Pencere yansıması
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.beginPath();
+        ctx.arc(-w * 0.05, -h * 0.15, w * 0.05, 0, Math.PI * 2);
         ctx.fill();
 
-        // Alev
-        if (this.status === 'launching') {
-            const flameLength = 30 + Math.random() * 25;
-            const grad = ctx.createLinearGradient(0, this.height / 2, 0, this.height / 2 + flameLength);
-            grad.addColorStop(0, '#ffffff');
-            grad.addColorStop(0.2, '#ffcc00');
-            grad.addColorStop(0.6, '#ff4400');
-            grad.addColorStop(1, 'rgba(255,0,0,0)');
-            ctx.fillStyle = grad;
+        // === ALEV ===
+        if (this.status === 'launching' && this.fuel > 0) {
+            const flameLength = 60 + Math.random() * 40;
+            const flameWidth = w * 0.55;
+
+            // Dış alev (kırmızı-turuncu)
+            const flameGrad = ctx.createLinearGradient(0, h * 0.5, 0, h * 0.5 + flameLength);
+            flameGrad.addColorStop(0, '#ffffff');
+            flameGrad.addColorStop(0.15, '#ffff00');
+            flameGrad.addColorStop(0.4, '#ff8800');
+            flameGrad.addColorStop(0.75, '#ff2200');
+            flameGrad.addColorStop(1, 'rgba(200, 0, 0, 0)');
+            ctx.fillStyle = flameGrad;
             ctx.beginPath();
-            ctx.moveTo(-this.width / 3, this.height / 2);
-            ctx.lineTo(0, this.height / 2 + flameLength);
-            ctx.lineTo(this.width / 3, this.height / 2);
+            ctx.moveTo(-flameWidth / 2, h * 0.5);
+            ctx.quadraticCurveTo(-flameWidth * 0.7, h * 0.5 + flameLength * 0.6, 0, h * 0.5 + flameLength);
+            ctx.quadraticCurveTo(flameWidth * 0.7, h * 0.5 + flameLength * 0.6, flameWidth / 2, h * 0.5);
+            ctx.closePath();
+            ctx.fill();
+
+            // İç alev (beyaz)
+            ctx.fillStyle = 'rgba(255, 255, 220, 0.9)';
+            ctx.beginPath();
+            ctx.moveTo(-flameWidth * 0.2, h * 0.5);
+            ctx.quadraticCurveTo(0, h * 0.5 + flameLength * 0.5, 0, h * 0.5 + flameLength * 0.7);
+            ctx.quadraticCurveTo(0, h * 0.5 + flameLength * 0.5, flameWidth * 0.2, h * 0.5);
             ctx.closePath();
             ctx.fill();
         }
@@ -224,32 +350,82 @@ class Rocket {
     }
 }
 
-// ---- Animasyon döngüsü ----
-let lastTime = 0;
-function animate(time) {
-    const dt = Math.min((time - lastTime) / 1000, 0.05);
-    lastTime = time;
+// ==== BİLGİ PANELİ ====
+function updateInfoPanel() {
+    if (!rocket) return;
+    const speedMs = Math.abs(rocket.vy) * PIXEL_TO_METERS;
+    const accelMs2 = rocket.status === 'launching' ? rocket.netAcceleration * PIXEL_TO_METERS : 0;
+    const startY = rocket.groundY - rocket.height / 2;
+    const altitudePx = startY - rocket.y;
+    const altitudeM = Math.max(0, altitudePx) * PIXEL_TO_METERS;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawStars();
-    if (rocket) {
-        rocket.update(dt);
-        rocket.draw();
-        if (rocket.status === 'launching') animationId = requestAnimationFrame(animate);
-        else animationId = null;
+    infoSpeed.textContent = `${Math.round(speedMs).toLocaleString('tr-TR')} m/s`;
+    infoAccel.textContent = `${Math.round(accelMs2).toLocaleString('tr-TR')} m/s²`;
+    infoFuel.textContent = `${Math.round(rocket.fuel)}%`;
+    infoAltitude.textContent = `${Math.round(altitudeM).toLocaleString('tr-TR')} m`;
+    infoTime.textContent = `${rocket.elapsedTime.toFixed(1)} s`;
+
+    // Yakıt rengi
+    if (rocket.fuel < 30) infoFuel.style.color = '#ff4444';
+    else if (rocket.fuel < 60) infoFuel.style.color = '#ffaa00';
+    else infoFuel.style.color = '#00cc66';
+}
+
+// ==== GEZEGEN ÇİZİMİ ====
+function drawPlanet() {
+    if (!rocket) return;
+    const groundY = getGroundY();
+    const curveHeight = 70;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height);
+    ctx.lineTo(0, groundY + curveHeight);
+    ctx.quadraticCurveTo(canvas.width / 2, groundY - curveHeight, canvas.width, groundY + curveHeight);
+    ctx.lineTo(canvas.width, canvas.height);
+    ctx.closePath();
+
+    const planetGrad = ctx.createLinearGradient(0, groundY - curveHeight, 0, canvas.height);
+    planetGrad.addColorStop(0, rocket.planet.color);
+    planetGrad.addColorStop(1, rocket.darken(rocket.planet.color, 0.35));
+    ctx.fillStyle = planetGrad;
+    ctx.fill();
+
+    // Yüzey çizgisi (parlak)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY + curveHeight);
+    ctx.quadraticCurveTo(canvas.width / 2, groundY - curveHeight, canvas.width, groundY + curveHeight);
+    ctx.stroke();
+
+    // Yüzey kraterleri / dokusu
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+    for (let i = 0; i < 15; i++) {
+        const x = (i * 137 + 50) % canvas.width;
+        const y = groundY + 30 + Math.sin(i) * 30 + (i * 23) % 40;
+        const r = 5 + (i * 7) % 15;
+        ctx.beginPath();
+        ctx.ellipse(x, y, r, r * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
     }
+
+    // Gezegen adı (sağ alt köşe)
+    ctx.font = 'bold 22px Arial';
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.fillText(rocket.planet.name.toUpperCase(), canvas.width - 30, canvas.height - 30);
+    ctx.font = '12px Arial';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.fillText(`Yerçekimi: ${rocket.planet.gravity} m/s²`, canvas.width - 30, canvas.height - 12);
+
+    ctx.restore();
 }
 
-function drawScene() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawStars();
-    if (rocket) rocket.draw();
-}
-
-// ---- Yıldızlar ----
+// ==== YILDIZLAR ====
 function initStars() {
     stars = [];
-    for (let i = 0; i < 120; i++) {
+    for (let i = 0; i < 130; i++) {
         stars.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
@@ -258,7 +434,6 @@ function initStars() {
         });
     }
 }
-
 function drawStars() {
     stars.forEach(s => {
         ctx.fillStyle = `rgba(255,255,255,${s.brightness})`;
@@ -268,13 +443,40 @@ function drawStars() {
     });
 }
 
-// ---- Geri sayım ----
+// ==== ANİMASYON DÖNGÜSÜ ====
+let lastTime = 0;
+function animate(time) {
+    const dt = Math.min((time - lastTime) / 1000, 0.05);
+    lastTime = time;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawStars();
+    drawPlanet();
+
+    if (rocket) {
+        rocket.update(dt);
+        rocket.draw();
+        updateInfoPanel();
+        if (rocket.status === 'launching') animationId = requestAnimationFrame(animate);
+        else animationId = null;
+    }
+}
+
+function drawScene() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawStars();
+    drawPlanet();
+    if (rocket) rocket.draw();
+    updateInfoPanel();
+}
+
+// ==== GERİ SAYIM ====
 function runLocalCountdown() {
     let count = 3;
     countdownOverlay.classList.add('active');
     countdownNumber.textContent = count;
     countdownNumber.style.animation = 'none';
-    void countdownNumber.offsetWidth; // reflow
+    void countdownNumber.offsetWidth;
     countdownNumber.style.animation = 'countdownPulse 0.8s ease-out';
     playBeep(600, 0.2);
     statusMessage.textContent = '⏱️ Geri sayım...';
@@ -295,25 +497,31 @@ function runLocalCountdown() {
             countdownOverlay.classList.remove('active');
             playLaunchSound();
             rocket.start();
+            // Sadece başlatıcı Firestore'a 'launching' yazar
+            if (isCountdownInitiator) {
+                db.collection('rockets').doc(`rocket${rocketId}`).update({
+                    status: 'launching',
+                    launchTime: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                isCountdownInitiator = false;
+            }
         }
     }, 1000);
 }
 
 function cancelCountdown() {
-    if (countdownTimer) {
-        clearInterval(countdownTimer);
-        countdownTimer = null;
-    }
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
     countdownOverlay.classList.remove('active');
 }
 
-// ---- Yerel butonlar ----
+// ==== YEREL BUTONLAR ====
 launchBtn.onclick = async () => {
     const docRef = db.collection('rockets').doc(`rocket${rocketId}`);
     const doc = await docRef.get();
     if (!doc.exists) return;
     const data = doc.data();
     if (data.status === 'idle' || data.status === 'launched') {
+        isCountdownInitiator = true;
         await docRef.update({
             status: 'countdown',
             countdownStart: firebase.firestore.FieldValue.serverTimestamp()
@@ -330,33 +538,53 @@ resetBtn.onclick = async () => {
     });
 };
 
-// ---- Firestore dinleyicisi ----
+// ==== FIRESTORE DİNLEYİCİSİ ====
 function listenToRocket() {
     db.collection('rockets').doc(`rocket${rocketId}`).onSnapshot(doc => {
-        if (doc.exists) {
-            const data = doc.data();
-            if (data.status === 'countdown' && rocket.status === 'idle' && !countdownTimer) {
-                runLocalCountdown();
-            } else if (data.status === 'launching' && rocket.status === 'idle') {
-                // Kontrol merkezi geri sayımı çoktan yaptıysa direkt ateşle
-                cancelCountdown();
-                if (!countdownTimer) playLaunchSound();
-                rocket.start();
-            } else if (data.status === 'launched' && rocket.status !== 'launched') {
+        if (!doc.exists) return;
+        const data = doc.data();
+
+        // İLK SNAPSHOT: sayfa açılırken otomatik ateşleme yapma
+        if (!initialSnapshotDone) {
+            initialSnapshotDone = true;
+            if (data.status === 'launched') {
+                // Zaten ateşlenmiş, sadece başarı ekranını göster
                 rocket.status = 'launched';
-                statusMessage.textContent = '✅ Görev Tamamlandı';
-                statusMessage.style.color = '#00cc66';
+                rocket.y = -rocket.height;
+                successOverlay.classList.add('active');
                 launchBtn.disabled = false;
                 resetBtn.disabled = false;
-            } else if (data.status === 'idle' && rocket.status !== 'idle') {
-                cancelCountdown();
-                rocket.reset();
+                drawScene();
+            } else if (data.status === 'countdown' || data.status === 'launching') {
+                // Sayfa açılırken yarıda kalmış bir fırlatma varsa sıfırla
+                db.collection('rockets').doc(`rocket${rocketId}`).update({
+                    status: 'idle',
+                    launchTime: null
+                });
             }
+            return;
+        }
+
+        // SONRAKİ DEĞİŞİKLİKLER
+        if (data.status === 'countdown' && rocket.status === 'idle' && !countdownTimer) {
+            runLocalCountdown();
+        } else if (data.status === 'launching' && rocket.status === 'idle') {
+            cancelCountdown();
+            playLaunchSound();
+            rocket.start();
+        } else if (data.status === 'launched' && rocket.status !== 'launched') {
+            rocket.status = 'launched';
+            launchBtn.disabled = false;
+            resetBtn.disabled = false;
+            successOverlay.classList.add('active');
+        } else if (data.status === 'idle' && rocket.status !== 'idle') {
+            cancelCountdown();
+            rocket.reset();
         }
     });
 }
 
-// ---- Başlatma ----
+// ==== BAŞLATMA ====
 function init() {
     resizeCanvas();
     initStars();
@@ -366,5 +594,4 @@ function init() {
     drawScene();
     listenToRocket();
 }
-
 init();

@@ -1,7 +1,7 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #e0e0e0; overflow: hidden; }
 
-/* Kontrol Sayfası */
+/* ==== Kontrol Sayfası ==== */
 .control-page {
     display: flex; justify-content: center; align-items: center;
     min-height: 100vh; background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
@@ -20,14 +20,12 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
 }
 .launch-all-btn:hover { transform: scale(1.02); box-shadow: 0 0 20px rgba(255, 68, 68, 0.5); }
 .launch-all-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
 .reset-all-btn {
     width: 100%; padding: 12px; background: linear-gradient(135deg, #555, #333);
     color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: bold;
     cursor: pointer; margin-bottom: 20px; transition: transform 0.2s;
 }
 .reset-all-btn:hover { transform: scale(1.02); }
-
 #rocket-controls { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .rocket-card {
     display: flex; justify-content: space-between; align-items: center;
@@ -47,8 +45,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
 .rocket-status.countdown { background: #ffcc00; color: #000; }
 .rocket-status.launching { background: #ffaa00; color: #000; }
 .rocket-status.launched { background: #00cc66; color: #000; }
-
-.rocket-actions { display: flex; gap: 6px; }
+.rocket-actions { display: flex; gap: 6px; align-items: center; }
 .launch-btn {
     padding: 8px 14px; background: #ff4444; color: white; border: none;
     border-radius: 8px; cursor: pointer; font-weight: bold; transition: background 0.2s;
@@ -56,7 +53,6 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
 }
 .launch-btn:hover { background: #cc0000; }
 .launch-btn:disabled { background: #333; cursor: not-allowed; opacity: 0.5; }
-
 .reset-btn {
     padding: 8px 14px; background: #555; color: white; border: none;
     border-radius: 8px; cursor: pointer; font-weight: bold; transition: background 0.2s;
@@ -65,22 +61,45 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
 .reset-btn:hover { background: #333; }
 .reset-btn:disabled { background: #222; cursor: not-allowed; opacity: 0.5; }
 
-/* Roket Sayfası */
+/* ==== Roket Sayfası ==== */
 .rocket-page {
     display: flex; justify-content: center; align-items: center;
     height: 100vh; background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
     position: relative; overflow: hidden;
 }
 #rocket-canvas { width: 100%; height: 100%; display: block; }
+
+/* Bilgi Paneli */
+#info-panel {
+    position: absolute; top: 16px; left: 16px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 12px;
+    padding: 14px 18px;
+    display: flex; flex-direction: column; gap: 6px;
+    min-width: 210px;
+    border-left: 4px solid #ff4444;
+    font-family: 'Courier New', monospace;
+    z-index: 10;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+.info-item { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.info-label { font-size: 0.7rem; color: #888; letter-spacing: 1px; }
+.info-value { font-size: 0.95rem; font-weight: bold; color: #ffcc00; transition: color 0.3s; }
+
+/* Durum Mesajı */
 #status-message {
-    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-    padding: 10px 20px; background: rgba(0, 0, 0, 0.7); border-radius: 20px;
-    font-size: 0.9rem; color: #aaa; z-index: 10;
+    position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+    padding: 10px 24px; background: rgba(0, 0, 0, 0.7);
+    border-radius: 24px; font-size: 0.95rem; color: #aaa;
+    z-index: 10; backdrop-filter: blur(8px);
+    white-space: nowrap;
 }
 
-/* Roket sayfası yerel butonlar */
+/* Yerel Butonlar */
 #local-controls {
-    position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%);
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
     display: flex; gap: 14px; z-index: 10;
 }
 .local-btn {
@@ -101,7 +120,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
 .local-btn.reset:hover { transform: scale(1.05); box-shadow: 0 0 25px rgba(150, 150, 150, 0.6); }
 .local-btn.reset:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
-/* Geri sayım */
+/* Geri Sayım */
 #countdown-overlay {
     position: absolute; top: 0; left: 0;
     width: 100%; height: 100%;
@@ -119,4 +138,40 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     0% { transform: scale(0.3); opacity: 0; }
     50% { transform: scale(1.2); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
+}
+
+/* Başarı Ekranı */
+#success-overlay {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, rgba(0, 200, 100, 0.95), rgba(0, 150, 80, 0.95));
+    padding: 30px 50px; border-radius: 20px;
+    text-align: center; color: white;
+    display: none;
+    box-shadow: 0 0 60px rgba(0, 200, 100, 0.8), 0 0 120px rgba(0, 200, 100, 0.4);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    z-index: 20;
+}
+#success-overlay.active {
+    display: block;
+    animation: successAppear 0.8s ease-out;
+}
+.success-icon {
+    font-size: 4rem; margin-bottom: 8px;
+    display: inline-block;
+    animation: rocketShake 0.5s ease-in-out infinite alternate;
+}
+.success-text {
+    font-size: 1.8rem; font-weight: bold;
+    letter-spacing: 2px; margin-bottom: 8px;
+}
+.success-subtext { font-size: 1rem; opacity: 0.9; color: #ccffcc; }
+@keyframes successAppear {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+    60% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    100% { transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes rocketShake {
+    0% { transform: translateX(-3px) rotate(-3deg); }
+    100% { transform: translateX(3px) rotate(3deg); }
 }

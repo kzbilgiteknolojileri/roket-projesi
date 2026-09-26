@@ -8,14 +8,47 @@
 </head>
 <body class="rocket-page">
     <canvas id="rocket-canvas"></canvas>
+
     <div id="countdown-overlay">
         <div id="countdown-number">3</div>
     </div>
+
+    <div id="success-overlay">
+        <div class="success-icon">🚀</div>
+        <div class="success-text">KALKIŞ BAŞARILI</div>
+        <div class="success-subtext">Yörüngeye ulaşıldı!</div>
+    </div>
+
+    <div id="info-panel">
+        <div class="info-item">
+            <span class="info-label">HIZ</span>
+            <span class="info-value" id="info-speed">0 m/s</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">İVME</span>
+            <span class="info-value" id="info-accel">0 m/s²</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">YAKIT</span>
+            <span class="info-value" id="info-fuel">100%</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">YÜKSEKLİK</span>
+            <span class="info-value" id="info-altitude">0 m</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">SÜRE</span>
+            <span class="info-value" id="info-time">0.0 s</span>
+        </div>
+    </div>
+
     <div id="local-controls">
         <button id="launch-btn" class="local-btn launch">🚀 ATEŞLE</button>
         <button id="reset-btn" class="local-btn reset">🔄 SIFIRLA</button>
     </div>
+
     <div id="status-message">Bekleniyor...</div>
+
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="firebase-config.js"></script>

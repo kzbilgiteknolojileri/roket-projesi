@@ -5,10 +5,12 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
 .control-page {
     display: flex; justify-content: center; align-items: center;
     min-height: 100vh; background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
+    overflow-y: auto;
 }
 #control-panel {
-    width: 90%; max-width: 500px; background: rgba(20, 20, 40, 0.95);
+    width: 90%; max-width: 560px; background: rgba(20, 20, 40, 0.95);
     border-radius: 16px; padding: 24px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    margin: 20px 0;
 }
 #control-panel h1 { font-size: 1.5rem; text-align: center; margin-bottom: 20px; color: #ffcc00; }
 .launch-all-btn {
@@ -18,6 +20,14 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
 }
 .launch-all-btn:hover { transform: scale(1.02); box-shadow: 0 0 20px rgba(255, 68, 68, 0.5); }
 .launch-all-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.reset-all-btn {
+    width: 100%; padding: 12px; background: linear-gradient(135deg, #555, #333);
+    color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: bold;
+    cursor: pointer; margin-bottom: 20px; transition: transform 0.2s;
+}
+.reset-all-btn:hover { transform: scale(1.02); }
+
 #rocket-controls { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .rocket-card {
     display: flex; justify-content: space-between; align-items: center;
@@ -25,6 +35,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     border-radius: 10px; border-left: 4px solid #444;
 }
 .rocket-card.idle { border-left-color: #666; }
+.rocket-card.countdown { border-left-color: #ffcc00; animation: pulse 0.5s infinite; }
 .rocket-card.launching { border-left-color: #ffaa00; animation: pulse 1s infinite; }
 .rocket-card.launched { border-left-color: #00cc66; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
@@ -33,23 +44,79 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
 .rocket-planet { font-size: 0.8rem; color: #aaa; }
 .rocket-status { font-size: 0.8rem; padding: 4px 10px; border-radius: 20px; background: #333; }
 .rocket-status.idle { background: #444; color: #aaa; }
+.rocket-status.countdown { background: #ffcc00; color: #000; }
 .rocket-status.launching { background: #ffaa00; color: #000; }
 .rocket-status.launched { background: #00cc66; color: #000; }
+
+.rocket-actions { display: flex; gap: 6px; }
 .launch-btn {
-    padding: 8px 16px; background: #ff4444; color: white; border: none;
+    padding: 8px 14px; background: #ff4444; color: white; border: none;
     border-radius: 8px; cursor: pointer; font-weight: bold; transition: background 0.2s;
+    font-size: 0.85rem;
 }
 .launch-btn:hover { background: #cc0000; }
-.launch-btn:disabled { background: #333; cursor: not-allowed; }
+.launch-btn:disabled { background: #333; cursor: not-allowed; opacity: 0.5; }
+
+.reset-btn {
+    padding: 8px 14px; background: #555; color: white; border: none;
+    border-radius: 8px; cursor: pointer; font-weight: bold; transition: background 0.2s;
+    font-size: 0.85rem;
+}
+.reset-btn:hover { background: #333; }
+.reset-btn:disabled { background: #222; cursor: not-allowed; opacity: 0.5; }
 
 /* Roket Sayfası */
 .rocket-page {
     display: flex; justify-content: center; align-items: center;
     height: 100vh; background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+    position: relative; overflow: hidden;
 }
 #rocket-canvas { width: 100%; height: 100%; display: block; }
 #status-message {
     position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
     padding: 10px 20px; background: rgba(0, 0, 0, 0.7); border-radius: 20px;
-    font-size: 0.9rem; color: #aaa;
+    font-size: 0.9rem; color: #aaa; z-index: 10;
+}
+
+/* Roket sayfası yerel butonlar */
+#local-controls {
+    position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 14px; z-index: 10;
+}
+.local-btn {
+    padding: 14px 28px; border: none; border-radius: 10px;
+    font-size: 1rem; font-weight: bold; cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s; color: white;
+}
+.local-btn.launch {
+    background: linear-gradient(135deg, #ff4444, #cc0000);
+    box-shadow: 0 4px 15px rgba(255, 68, 68, 0.4);
+}
+.local-btn.launch:hover { transform: scale(1.05); box-shadow: 0 0 25px rgba(255, 68, 68, 0.7); }
+.local-btn.launch:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.local-btn.reset {
+    background: linear-gradient(135deg, #666, #333);
+    box-shadow: 0 4px 15px rgba(100, 100, 100, 0.4);
+}
+.local-btn.reset:hover { transform: scale(1.05); box-shadow: 0 0 25px rgba(150, 150, 150, 0.6); }
+.local-btn.reset:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+/* Geri sayım */
+#countdown-overlay {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex; justify-content: center; align-items: center;
+    pointer-events: none; z-index: 5;
+    display: none;
+}
+#countdown-overlay.active { display: flex; }
+#countdown-number {
+    font-size: 12rem; font-weight: bold; color: #ffcc00;
+    text-shadow: 0 0 40px rgba(255, 204, 0, 0.8), 0 0 80px rgba(255, 68, 68, 0.6);
+    animation: countdownPulse 0.8s ease-out;
+}
+@keyframes countdownPulse {
+    0% { transform: scale(0.3); opacity: 0; }
+    50% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
 }

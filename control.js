@@ -15,48 +15,42 @@ const controlsContainer = document.getElementById('rocket-controls');
 const launchAllBtn = document.getElementById('launch-all');
 const resetAllBtn = document.getElementById('reset-all');
 
-// ---- Ses motoru ----
+// ==== SES MOTORU ====
 let audioCtx = null;
 function getAudioCtx() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
     return audioCtx;
 }
-
 function playBeep(frequency = 800, duration = 0.15) {
     try {
-        const ctx = getAudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+        const c = getAudioCtx();
+        const osc = c.createOscillator();
+        const gain = c.createGain();
         osc.type = 'sine';
         osc.frequency.value = frequency;
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + duration);
+        gain.gain.setValueAtTime(0.2, c.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration);
+        osc.connect(gain); gain.connect(c.destination);
+        osc.start(); osc.stop(c.currentTime + duration);
     } catch (e) { console.warn('Ses hatası:', e); }
 }
-
 function playLaunchSound() {
     try {
-        const ctx = getAudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+        const c = getAudioCtx();
+        const osc = c.createOscillator();
+        const gain = c.createGain();
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(60, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 2.5);
-        gain.gain.setValueAtTime(0.25, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.5);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 2.5);
+        osc.frequency.setValueAtTime(60, c.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(180, c.currentTime + 2.5);
+        gain.gain.setValueAtTime(0.25, c.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 2.5);
+        osc.connect(gain); gain.connect(c.destination);
+        osc.start(); osc.stop(c.currentTime + 2.5);
     } catch (e) { console.warn('Ses hatası:', e); }
 }
 
-// ---- Arayüz oluşturma ----
+// ==== ARAYÜZ ====
 function createRocketCards() {
     for (let i = 0; i < rocketCount; i++) {
         const card = document.createElement('div');
@@ -93,41 +87,48 @@ function createRocketCards() {
     }
 }
 
-// ---- Firestore işlemleri ----
+// ==== FIRESTORE İŞLEMLERİ ====
+// Artık status kontrolü yapmıyoruz. Her tıklama doğrudan 'countdown' yazar.
 async function startCountdown(id) {
-    const docRef = db.collection('rockets').doc(`rocket${id}`);
-    const doc = await docRef.get();
-    if (!doc.exists) return;
-    const data = doc.data();
-    if (data.status === 'idle' || data.status === 'launched') {
+    try {
+        const docRef = db.collection('rockets').doc(`rocket${id}`);
         await docRef.update({
             status: 'countdown',
             countdownStart: firebase.firestore.FieldValue.serverTimestamp()
         });
+    } catch (e) {
+        console.warn('Ateşleme hatası (rocket' + id + '):', e);
+        // Belge yoksa oluştur
+        try {
+            await db.collection('rockets').doc(`rocket${id}`).set({
+                planet: planets[id].name,
+                status: 'countdown',
+                countdownStart: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } catch (e2) { console.error(e2); }
     }
 }
 
 async function resetRocket(id) {
-    const docRef = db.collection('rockets').doc(`rocket${id}`);
-    await docRef.update({
-        status: 'idle',
-        launchTime: null
-    });
+    try {
+        await db.collection('rockets').doc(`rocket${id}`).update({
+            status: 'idle',
+            launchTime: null
+        });
+    } catch (e) {
+        try {
+            await db.collection('rockets').doc(`rocket${id}`).set({
+                planet: planets[id].name,
+                status: 'idle',
+                launchTime: null
+            });
+        } catch (e2) { console.error(e2); }
+    }
 }
 
 async function launchAll() {
     for (let i = 0; i < rocketCount; i++) {
-        const docRef = db.collection('rockets').doc(`rocket${i}`);
-        const doc = await docRef.get();
-        if (doc.exists) {
-            const data = doc.data();
-            if (data.status === 'idle' || data.status === 'launched') {
-                await docRef.update({
-                    status: 'countdown',
-                    countdownStart: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            }
-        }
+        await startCountdown(i);
     }
 }
 
@@ -137,14 +138,14 @@ async function resetAll() {
     }
 }
 
-// ---- Geri sayım yönetimi ----
+// ==== GERİ SAYIM ====
 const activeCountdowns = {};
 
 function runCountdown(id) {
-    if (activeCountdowns[id]) return; // zaten çalışıyor
+    if (activeCountdowns[id]) return;
+    activeCountdowns[id] = true;
     let count = 3;
     playBeep(600, 0.2);
-    activeCountdowns[id] = true;
 
     const tick = () => {
         if (count > 1) {
@@ -152,14 +153,14 @@ function runCountdown(id) {
             playBeep(600, 0.2);
             setTimeout(tick, 1000);
         } else {
-            // Geri sayım bitti -> launching
             setTimeout(async () => {
                 playLaunchSound();
-                const docRef = db.collection('rockets').doc(`rocket${id}`);
-                await docRef.update({
-                    status: 'launching',
-                    launchTime: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                try {
+                    await db.collection('rockets').doc(`rocket${id}`).update({
+                        status: 'launching',
+                        launchTime: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (e) { console.warn(e); }
                 delete activeCountdowns[id];
             }, 1000);
         }
@@ -167,12 +168,13 @@ function runCountdown(id) {
     setTimeout(tick, 1000);
 }
 
-// ---- Firestore dinleyicisi ----
+// ==== DİNLEYİCİ ====
 function listenToRockets() {
     db.collection('rockets').onSnapshot(snapshot => {
         snapshot.docChanges().forEach(change => {
             const data = change.doc.data();
             const id = parseInt(change.doc.id.replace('rocket', ''));
+            if (isNaN(id) || id < 0 || id >= rocketCount) return;
             updateRocketUI(id, data.status);
             if (data.status === 'countdown') runCountdown(id);
         });
@@ -208,21 +210,36 @@ function updateRocketUI(id, status) {
     }
 }
 
-// ---- Başlatma ----
+// ==== SAYFA AÇILIŞINDA TEMİZLİK ====
+// Firestore'da takılı kalmış countdown/launching durumlarını idle'a çevir
+async function cleanupStuckRockets() {
+    for (let i = 0; i < rocketCount; i++) {
+        const docRef = db.collection('rockets').doc(`rocket${i}`);
+        try {
+            const doc = await docRef.get();
+            if (!doc.exists) {
+                await docRef.set({
+                    planet: planets[i].name,
+                    status: 'idle',
+                    launchTime: null
+                });
+            } else {
+                const data = doc.data();
+                if (data.status === 'countdown' || data.status === 'launching') {
+                    await docRef.update({ status: 'idle', launchTime: null });
+                }
+            }
+        } catch (e) { console.warn('Cleanup hatası rocket' + i + ':', e); }
+    }
+}
+
+// ==== BAŞLATMA ====
 function init() {
     createRocketCards();
     launchAllBtn.onclick = launchAll;
     resetAllBtn.onclick = resetAll;
     listenToRockets();
-
-    for (let i = 0; i < rocketCount; i++) {
-        const docRef = db.collection('rockets').doc(`rocket${i}`);
-        docRef.get().then(doc => {
-            if (!doc.exists) {
-                docRef.set({ planet: planets[i].name, status: 'idle', launchTime: null });
-            }
-        });
-    }
+    cleanupStuckRockets();
 }
 
 init();

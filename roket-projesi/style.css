@@ -1,0 +1,55 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #e0e0e0; overflow: hidden; }
+
+/* Kontrol Sayfası */
+.control-page {
+    display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
+}
+#control-panel {
+    width: 90%; max-width: 500px; background: rgba(20, 20, 40, 0.95);
+    border-radius: 16px; padding: 24px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+#control-panel h1 { font-size: 1.5rem; text-align: center; margin-bottom: 20px; color: #ffcc00; }
+.launch-all-btn {
+    width: 100%; padding: 16px; background: linear-gradient(135deg, #ff4444, #cc0000);
+    color: white; border: none; border-radius: 12px; font-size: 1.2rem; font-weight: bold;
+    cursor: pointer; margin-bottom: 20px; transition: transform 0.2s, box-shadow 0.2s;
+}
+.launch-all-btn:hover { transform: scale(1.02); box-shadow: 0 0 20px rgba(255, 68, 68, 0.5); }
+.launch-all-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+#rocket-controls { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.rocket-card {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px; background: rgba(40, 40, 70, 0.8);
+    border-radius: 10px; border-left: 4px solid #444;
+}
+.rocket-card.idle { border-left-color: #666; }
+.rocket-card.launching { border-left-color: #ffaa00; animation: pulse 1s infinite; }
+.rocket-card.launched { border-left-color: #00cc66; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+.rocket-info { display: flex; flex-direction: column; }
+.rocket-name { font-weight: bold; font-size: 0.95rem; }
+.rocket-planet { font-size: 0.8rem; color: #aaa; }
+.rocket-status { font-size: 0.8rem; padding: 4px 10px; border-radius: 20px; background: #333; }
+.rocket-status.idle { background: #444; color: #aaa; }
+.rocket-status.launching { background: #ffaa00; color: #000; }
+.rocket-status.launched { background: #00cc66; color: #000; }
+.launch-btn {
+    padding: 8px 16px; background: #ff4444; color: white; border: none;
+    border-radius: 8px; cursor: pointer; font-weight: bold; transition: background 0.2s;
+}
+.launch-btn:hover { background: #cc0000; }
+.launch-btn:disabled { background: #333; cursor: not-allowed; }
+
+/* Roket Sayfası */
+.rocket-page {
+    display: flex; justify-content: center; align-items: center;
+    height: 100vh; background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+}
+#rocket-canvas { width: 100%; height: 100%; display: block; }
+#status-message {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    padding: 10px 20px; background: rgba(0, 0, 0, 0.7); border-radius: 20px;
+    font-size: 0.9rem; color: #aaa;
+}

@@ -313,7 +313,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     opacity: 1;
 }
 
-/* ==== YENİ: Roket ekranı dil değiştirici ==== */
+/* ==== Roket ekranı dil değiştirici ==== */
 .rocket-lang-switch {
     position: absolute; top: 20px; right: 20px;
     display: flex; gap: 2px;
@@ -364,7 +364,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
 .info-value { font-size: 1.1rem; font-weight: bold; color: #ffcc00; transition: color 0.3s; }
 
 #chart-panel {
-    position: absolute; top: 70px; right: 20px; /* Dil switch için aşağı kaydı */
+    position: absolute; top: 70px; right: 20px;
     background: rgba(0, 0, 0, 0.65);
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     border-radius: 12px;
@@ -440,7 +440,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     100% { transform: scale(1); opacity: 1; }
 }
 
-/* ==== Başarı Ekranı ==== */
+/* ==== Başarı Ekranı (iniş sırasında sola kayar) ==== */
 #success-overlay {
     position: absolute; top: 50%; left: 50%;
     transform: translate(-50%, -50%);
@@ -454,13 +454,24 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     max-width: 90vw; max-height: 90vh;
     overflow-y: auto;
     min-width: 380px;
-    transition: opacity 1.2s;
+    transition: left 1s ease, transform 1s ease, min-width 1s ease, max-width 1s ease, padding 1s ease;
 }
 #success-overlay.active { display: block; animation: successAppear 0.8s ease-out; }
-/* YENİ: İniş sırasında saydamlaşsın */
-#success-overlay.fade-out { opacity: 0.35; }
-#success-overlay.fade-out .stats-block,
-#success-overlay.fade-out .comparison-block { pointer-events: auto; }
+
+/* YENİ: İniş modu — sola kayar, küçülür, roket ortada görünür */
+#success-overlay.descent-mode {
+    left: 20px;
+    transform: translate(0, -50%);
+    min-width: 300px;
+    max-width: 380px;
+    padding: 18px 22px;
+}
+#success-overlay.descent-mode .success-icon { font-size: 2.2rem; }
+#success-overlay.descent-mode .success-text { font-size: 1.15rem; letter-spacing: 1px; }
+#success-overlay.descent-mode .success-subtext { font-size: 0.78rem; margin-bottom: 8px; }
+#success-overlay.descent-mode .stats-block { margin-top: 10px; padding-top: 10px; }
+#success-overlay.descent-mode .stat-value { font-size: 0.9rem; }
+#success-overlay.descent-mode .stat-label { font-size: 0.6rem; }
 
 .success-icon {
     font-size: 3.5rem; margin-bottom: 4px;
@@ -584,5 +595,6 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     #info-panel { min-width: 240px; padding: 14px 16px; }
     .info-value { font-size: 0.95rem; }
     #success-overlay { padding: 20px 24px; min-width: 90vw; }
+    #success-overlay.descent-mode { left: 10px; min-width: 60vw; max-width: 80vw; }
     .stats-grid { grid-template-columns: 1fr; }
 }

@@ -31,7 +31,7 @@ const currentPlanet = PLANETS[currentRocket.planet];
 const LANG = {
     tr: {
         standby: 'Bekleniyor...', countdown: '⏱️ Geri sayım...', launched: '🚀 Ateşlendi!',
-        descending: '🛬 İniş yapılıyor...',
+        descending: '🛬 İniş yapılıyor...', landed: '✅ İniş tamamlandı',
         successTitle: 'KALKIŞ BAŞARILI', successSub: 'Yörüngeye ulaşıldı!',
         speed: 'HIZ', accel: 'İVME', fuel: 'YAKIT', mass: 'KÜTLE',
         altitude: 'YÜKSEKLİK', time: 'SÜRE',
@@ -46,7 +46,7 @@ const LANG = {
     },
     en: {
         standby: 'Standby...', countdown: '⏱️ Countdown...', launched: '🚀 Launched!',
-        descending: '🛬 Landing...',
+        descending: '🛬 Landing...', landed: '✅ Landing complete',
         successTitle: 'LAUNCH SUCCESSFUL', successSub: 'Orbit achieved!',
         speed: 'SPEED', accel: 'ACCEL', fuel: 'FUEL', mass: 'MASS',
         altitude: 'ALTITUDE', time: 'TIME',
@@ -61,13 +61,9 @@ const LANG = {
     }
 };
 
-// YENİ: Yerel dil override (localStorage'da saklanır)
-let localOverride = null;
-try { localOverride = localStorage.getItem('rocket_lang_' + rocketId); } catch (e) {}
-let currentLang = localOverride || 'tr';
+let currentLang = 'tr';
 function t(k) { return LANG[currentLang][k] || k; }
 
-// ==== FORMAT ====
 function formatTime(sec) {
     if (sec < 60) return `${sec.toFixed(1)} s`;
     const min = Math.floor(sec / 60);
@@ -110,7 +106,6 @@ const statValAlt = document.getElementById('stat-val-alt');
 const comparisonBlock = document.getElementById('comparison-block');
 const comparisonList = document.getElementById('comparison-list');
 
-// YENİ: Dil düğmeleri
 const rLangTr = document.getElementById('r-lang-tr');
 const rLangEn = document.getElementById('r-lang-en');
 
@@ -185,20 +180,17 @@ function speak(text) {
     } catch (e) {}
 }
 
-// ==== DİL DÜĞMELERİ ====
+// ==== DİL (artık global - Firestore'a yazılır) ====
 function updateLangButtons() {
     rLangTr.classList.toggle('active', currentLang === 'tr');
     rLangEn.classList.toggle('active', currentLang === 'en');
 }
-function setLocalLang(lang) {
-    currentLang = lang;
-    localOverride = lang;
-    try { localStorage.setItem('rocket_lang_' + rocketId, lang); } catch (e) {}
-    updateLangButtons();
-    applyLanguage();
+// Roket ekranındaki TR/EN butonları Firestore'a yazar → tüm ekranlar uyar
+function setGlobalLanguage(lang) {
+    db.collection('config').doc('language').set({ lang }, { merge: true }).catch(() => {});
 }
-rLangTr.onclick = () => setLocalLang('tr');
-rLangEn.onclick = () => setLocalLang('en');
+rLangTr.onclick = () => setGlobalLanguage('tr');
+rLangEn.onclick = () => setGlobalLanguage('en');
 
 // ==== ÇEVİRİ UYGULA ====
 function applyLanguage() {
@@ -226,18 +218,20 @@ function applyLanguage() {
             statusMessage.textContent = `${t('standby')} (${currentRocket.name})`;
         } else if (rocket.status === 'descending') {
             statusMessage.textContent = t('descending');
+        } else if (rocket.status === 'landed') {
+            statusMessage.textContent = t('landed');
         }
     }
     drawChart();
     updateInfoPanel();
 }
 
+// Her cihaz bu dinleyiciyi dinler. Master değişince hepsi uyar.
 async function listenToLanguage() {
     db.collection('config').doc('language').onSnapshot(doc => {
         if (doc.exists && doc.data().lang) {
             const masterLang = doc.data().lang;
-            // Yerel override varsa master'ı dinleme
-            if (!localOverride && masterLang !== currentLang) {
+            if (masterLang !== currentLang) {
                 currentLang = masterLang;
                 updateLangButtons();
                 applyLanguage();
@@ -290,7 +284,6 @@ class Rocket {
         this.currentMass = rocketData.mass;
         this.maxSpeed = 0;
         this.maxAltitude = 0;
-        // İniş değişkenleri
         this.descentStartY = 0;
         this.descentEndY = 0;
         this.descentElapsed = 0;
@@ -320,7 +313,7 @@ class Rocket {
         statusMessage.style.color = '#aaa';
         launchBtn.disabled = false; resetBtn.disabled = true;
         successOverlay.classList.remove('active');
-        successOverlay.classList.remove('fade-out');
+        successOverlay.classList.remove('descent-mode');
         statsBlock.style.display = 'none';
         comparisonBlock.style.display = 'none';
         if (comparisonUnsub) { comparisonUnsub(); comparisonUnsub = null; }
@@ -338,7 +331,7 @@ class Rocket {
         statusMessage.style.color = '#ffaa00';
         launchBtn.disabled = true; resetBtn.disabled = false;
         successOverlay.classList.remove('active');
-        successOverlay.classList.remove('fade-out');
+        successOverlay.classList.remove('descent-mode');
         statsBlock.style.display = 'none';
         comparisonBlock.style.display = 'none';
         if (animationId) cancelAnimationFrame(animationId);
@@ -348,12 +341,15 @@ class Rocket {
     }
     startDescent() {
         this.status = 'descending';
+        // Roket izi temizlenir (iniş sırasında duman kalmaz)
+        this.trail = [];
         this.descentStartY = this.y;
         this.descentEndY = this.groundY - this.height / 2;
         this.descentElapsed = 0;
         statusMessage.textContent = t('descending');
         statusMessage.style.color = '#88aaff';
-        successOverlay.classList.add('fade-out');
+        // Başarı paneli sola kayar (CSS transition ile yumuşak geçiş)
+        successOverlay.classList.add('descent-mode');
         lastTime = 0;
         if (animationId) cancelAnimationFrame(animationId);
         animationId = requestAnimationFrame(animate);
@@ -367,6 +363,7 @@ class Rocket {
             const dryMassRatio = 0.3;
             this.currentMass = this.initialMass * (dryMassRatio + (1 - dryMassRatio) * (this.fuel / 100));
 
+            // Roket izi sadece kalkış sırasında
             for (let k = 0; k < 3; k++) {
                 this.trail.push({
                     x: this.x + (Math.random() - 0.5) * 14,
@@ -401,14 +398,13 @@ class Rocket {
 
             if (this.y + this.height / 2 < 0) {
                 this.status = 'launched';
-                this.y = -this.height; // Tamamen yukarıda sabitle
+                this.y = -this.height;
                 statusMessage.textContent = '';
                 launchBtn.disabled = false; resetBtn.disabled = false;
                 atmosphereEl.style.opacity = '0';
                 this.maxSpeed = this.planet.orbitVelocity;
                 this.maxAltitude = this.planet.orbitAltitude;
                 showStatsAndSave();
-                // 3 saniye sonra iniş başlasın
                 this.descentTimeout = setTimeout(() => {
                     this.startDescent();
                     this.descentTimeout = null;
@@ -417,16 +413,16 @@ class Rocket {
         } else if (this.status === 'descending') {
             this.descentElapsed += dt;
             const progress = Math.min(1, this.descentElapsed / this.descentDuration);
-            // Ease-in-out: 0.5 * (1 - cos(PI * progress))
             const eased = 0.5 * (1 - Math.cos(Math.PI * progress));
             this.y = this.descentStartY + (this.descentEndY - this.descentStartY) * eased;
 
             if (progress >= 1) {
                 this.y = this.descentEndY;
                 this.status = 'landed';
-                statusMessage.textContent = currentLang === 'tr' ? '✅ İniş tamamlandı' : '✅ Landing complete';
+                statusMessage.textContent = t('landed');
                 statusMessage.style.color = '#00cc66';
-                successOverlay.classList.remove('fade-out');
+                // Başarı paneli tekrar ortaya ve normal opaklığa döner
+                successOverlay.classList.remove('descent-mode');
             }
         }
     }
@@ -438,7 +434,7 @@ class Rocket {
         return `rgb(${Math.floor(r*factor)}, ${Math.floor(g*factor)}, ${Math.floor(b*factor)})`;
     }
     draw() {
-        // İniş sırasında iz yok
+        // Trail çizimi (kalkış sırasında dolu, iniş sırasında boş)
         this.trail.forEach(tt => {
             const alpha = tt.life * 0.5;
             const grd = ctx.createRadialGradient(tt.x, tt.y, 0, tt.x, tt.y, tt.size);
@@ -657,7 +653,7 @@ function drawChart() {
     chartCtx.stroke();
 }
 
-// ==== GEZEGEN ÇİZİMİ (BÜYÜK + YUKARIDA) ====
+// ==== GEZEGEN ÇİZİMİ ====
 function drawPlanet() {
     if (!rocket) return;
     const groundY = getGroundY();
@@ -687,21 +683,15 @@ function drawPlanet() {
     }
     ctx.restore();
 
-    // YENİ: Büyük ve yukarı taşınmış gezegen metni
     const planetName = currentLang === 'tr' ? rocket.rocketData.planet : rocket.planet.nameEn;
     ctx.save();
     ctx.textAlign = 'right';
-
-    // Gezegen ismi büyütüldü: 48 -> 60, yukarı taşındı
     ctx.font = 'bold 60px Arial';
     ctx.fillStyle = 'rgba(255,255,255,0.22)';
     ctx.fillText(planetName.toUpperCase(), canvas.width - 30, canvas.height - 100);
-
-    // Alt yazı büyütüldü: 14 -> 18, yukarı taşındı
     ctx.font = 'bold 18px Arial';
     ctx.fillStyle = 'rgba(255,255,255,0.45)';
     ctx.fillText(`${t('gravity')}: ${rocket.planet.gravity} m/s²  •  ${t('escapeVel')}: ${rocket.planet.escapeVelocity} km/s`, canvas.width - 30, canvas.height - 65);
-
     ctx.restore();
 }
 
@@ -760,7 +750,6 @@ function animate(time) {
     if (rocket) {
         rocket.update(dt); rocket.draw();
         updateInfoPanel(); drawChart();
-        // Kalkış veya iniş sırasında animasyon devam eder
         if (rocket.status === 'launching' || rocket.status === 'descending') {
             animationId = requestAnimationFrame(animate);
         } else {
@@ -855,7 +844,6 @@ function listenToRocket() {
         if (!initialSnapshotDone) {
             initialSnapshotDone = true;
             if (data.status === 'launched') {
-                // Sayfa yenilendi ve roket zaten yörüngede -> yerde duruyor olarak göster
                 rocket.status = 'landed';
                 rocket.y = rocket.groundY - rocket.height / 2;
                 if (data.stats) {
@@ -888,7 +876,6 @@ function listenToRocket() {
                 cancelCountdown(); playLaunchSound(); rocket.start();
             }
         } else if (data.status === 'launched') {
-            // Local state'ler: launching, launched, descending, landed -> hiçbir şey yapma
             const localStates = ['launching', 'launched', 'descending', 'landed'];
             if (!localStates.includes(rocket.status)) {
                 rocket.status = 'launched';
@@ -913,13 +900,11 @@ function listenToRocket() {
 
 // ==== BAŞLATMA ====
 async function init() {
-    // Eğer yerel override yoksa master dilini al
-    if (!localOverride) {
-        try {
-            const d = await db.collection('config').doc('language').get();
-            if (d.exists && d.data().lang) currentLang = d.data().lang;
-        } catch (e) {}
-    }
+    // Firestore'daki dile göre başla
+    try {
+        const d = await db.collection('config').doc('language').get();
+        if (d.exists && d.data().lang) currentLang = d.data().lang;
+    } catch (e) {}
     updateLangButtons();
 
     resizeCanvas(); initStars();

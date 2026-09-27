@@ -15,14 +15,12 @@
         <div id="countdown-number">3</div>
     </div>
 
-    <!-- Başarı mesajı (ortada, sabit) -->
     <div id="success-overlay">
         <div class="success-icon">🚀</div>
         <div class="success-text" id="success-title">KALKIŞ BAŞARILI</div>
         <div class="success-subtext" id="success-sub">Yörüngeye ulaşıldı!</div>
     </div>
 
-    <!-- Yeni: İstatistik paneli (sol tarafta) -->
     <div id="stats-panel" style="display:none;">
         <div class="stats-title" id="stats-title">GÖREV İSTATİSTİKLERİ</div>
         <div class="stats-grid">
@@ -50,7 +48,6 @@
         </div>
     </div>
 
-    <!-- Roket ekranı yerel dil değiştirici -->
     <div class="rocket-lang-switch">
         <button id="r-lang-tr" class="r-lang-btn active">TR</button>
         <button id="r-lang-en" class="r-lang-btn">EN</button>
@@ -94,11 +91,14 @@
     </div>
 
     <div id="local-controls">
+        <button id="voice-btn" class="local-btn voice">🎤 SESLİ DENETİM</button>
         <button id="launch-btn" class="local-btn launch">🚀 ATEŞLE</button>
         <button id="reset-btn" class="local-btn reset">🔄 SIFIRLA</button>
     </div>
 
     <div id="status-message">Bekleniyor...</div>
+
+    <div class="voice-toast" id="voice-toast"></div>
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>

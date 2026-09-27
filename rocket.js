@@ -28,6 +28,21 @@ const ROCKETS = [
 const currentRocket = ROCKETS[rocketId];
 const currentPlanet = PLANETS[currentRocket.planet];
 
+// ==== ROKET ALIASES (Sadece bu roket için) ====
+const ALL_ALIASES = {
+    0: ['saturn v', 'saturn bes', 'saturn beş', 'saturn 5', 'saturn'],
+    1: ['falcon 9', 'falcon nine', 'falcon dokuz', 'falcon'],
+    2: ['ariane 5', 'ariane bes', 'ariane beş', 'ariane'],
+    3: ['soyuz fg', 'soyuz'],
+    4: ['long march 5', 'long march bes', 'long march beş', 'long march'],
+    5: ['h iia', 'h i i a', 'h 2 a', 'h2a'],
+    6: ['delta iv heavy', 'delta 4 heavy', 'delta heavy', 'delta'],
+    7: ['proton m', 'proton'],
+    8: ['electron']
+};
+const MY_ALIASES = ALL_ALIASES[rocketId] || [];
+
+// ==== ÇEVİRİLER ====
 const LANG = {
     tr: {
         standby: 'Bekleniyor...', countdown: '⏱️ Geri sayım...', launched: '🚀 Ateşlendi!',
@@ -42,7 +57,13 @@ const LANG = {
         comparison: '🏆 GÖREV KARŞILAŞTIRMASI', pending: 'bekliyor',
         launchBtn: '🚀 ATEŞLE', resetBtn: '🔄 SIFIRLA',
         gravity: 'YERÇEKİMİ', escapeVel: 'KAÇIŞ HIZI',
-        speech: ['Üç', 'İki', 'Bir', 'Ateş!'], speechLang: 'tr-TR'
+        speech: ['Üç', 'İki', 'Bir', 'Ateş!'], speechLang: 'tr-TR',
+        voiceStart: '🎤 SESLİ DENETİM', voiceListening: 'DİNLİYOR',
+        voiceHeard: 'Duyuldu', voiceCommandLaunch: 'ateşleme',
+        voiceCommandReset: 'sıfırlama',
+        voiceDenied: 'Mikrofon izni verilmedi',
+        voiceNotSupported: 'Tarayıcı desteklemiyor',
+        voiceOwn: `Bu ekran sadece kendine ait komutu dinler`
     },
     en: {
         standby: 'Standby...', countdown: '⏱️ Countdown...', launched: '🚀 Launched!',
@@ -57,13 +78,16 @@ const LANG = {
         comparison: '🏆 MISSION COMPARISON', pending: 'pending',
         launchBtn: '🚀 LAUNCH', resetBtn: '🔄 RESET',
         gravity: 'GRAVITY', escapeVel: 'ESCAPE VELOCITY',
-        speech: ['Three', 'Two', 'One', 'Fire!'], speechLang: 'en-US'
+        speech: ['Three', 'Two', 'One', 'Fire!'], speechLang: 'en-US',
+        voiceStart: '🎤 VOICE CONTROL', voiceListening: 'LISTENING',
+        voiceHeard: 'Heard', voiceCommandLaunch: 'launch',
+        voiceCommandReset: 'reset',
+        voiceDenied: 'Microphone permission denied',
+        voiceNotSupported: 'Browser not supported',
+        voiceOwn: `This screen only listens for its own command`
     }
 };
 
-// ==== YEREL DİL OVERRIDE ====
-// Roket ekranındaki TR/EN tıklanınca localStorage'a kaydedilir,
-// sadece bu ekranı etkiler. Master değişirse ve override yoksa uyar.
 let localOverride = null;
 try { localOverride = localStorage.getItem('rocket_lang_' + rocketId); } catch (e) {}
 let currentLang = localOverride || 'tr';
@@ -86,16 +110,15 @@ const canvas = document.getElementById('rocket-canvas');
 const ctx = canvas.getContext('2d');
 const chartCanvas = document.getElementById('chart-canvas');
 const chartCtx = chartCanvas.getContext('2d');
-
 const statusMessage = document.getElementById('status-message');
 const launchBtn = document.getElementById('launch-btn');
 const resetBtn = document.getElementById('reset-btn');
+const voiceBtn = document.getElementById('voice-btn');
 const countdownOverlay = document.getElementById('countdown-overlay');
 const countdownNumber = document.getElementById('countdown-number');
 const successOverlay = document.getElementById('success-overlay');
 const statsPanel = document.getElementById('stats-panel');
 const atmosphereEl = document.getElementById('atmosphere');
-
 const infoSpeed = document.getElementById('info-speed');
 const infoAccel = document.getElementById('info-accel');
 const infoFuel = document.getElementById('info-fuel');
@@ -103,14 +126,12 @@ const infoMass = document.getElementById('info-mass');
 const infoAltitude = document.getElementById('info-altitude');
 const infoTime = document.getElementById('info-time');
 const rocketNameEl = document.getElementById('rocket-name');
-
 const statValTime = document.getElementById('stat-val-time');
 const statValFuel = document.getElementById('stat-val-fuel');
 const statValSpeed = document.getElementById('stat-val-speed');
 const statValAlt = document.getElementById('stat-val-alt');
 const comparisonBlock = document.getElementById('comparison-block');
 const comparisonList = document.getElementById('comparison-list');
-
 const rLangTr = document.getElementById('r-lang-tr');
 const rLangEn = document.getElementById('r-lang-en');
 
@@ -185,28 +206,235 @@ function speak(text) {
     } catch (e) {}
 }
 
+// ==== SESLİ KOMUT (ROKET EKRANI) ====
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let voiceActive = false;
+let lastCommandTime = 0;
+let lastCommandKey = '';
+
+const TR_NUMS = {
+    'bir': 1, '1': 1, 'iki': 2, '2': 2, 'üç': 3, 'uc': 3, '3': 3,
+    'dört': 4, 'dort': 4, '4': 4, 'beş': 5, 'bes': 5, '5': 5,
+    'altı': 6, 'alti': 6, '6': 6, 'yedi': 7, '7': 7,
+    'sekiz': 8, '8': 8, 'dokuz': 9, '9': 9
+};
+const EN_NUMS = {
+    'one': 1, '1': 1, 'two': 2, '2': 2, 'three': 3, '3': 3,
+    'four': 4, '4': 4, 'five': 5, '5': 5, 'six': 6, '6': 6,
+    'seven': 7, '7': 7, 'eight': 8, '8': 8, 'nine': 9, '9': 9
+};
+
+function normalizeText(text) {
+    return text.toLowerCase()
+        .replace(/[.,!?;:'"()\[\]{}]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+function extractNumber(words, nums) {
+    for (const w of words) {
+        if (nums[w] !== undefined) return nums[w];
+    }
+    return null;
+}
+function matchesMyName(norm) {
+    return MY_ALIASES.some(a => norm.includes(a));
+}
+
+// Bu ekran için geçerli mi? Sadece kendi komutu
+function parseMyCommand(transcript) {
+    const norm = normalizeText(transcript);
+    const words = norm.split(' ');
+    const nums = currentLang === 'tr' ? TR_NUMS : EN_NUMS;
+
+    const hasFire = norm.includes('ateşle') || norm.includes('atesle') ||
+                    norm.includes('fırlat') || norm.includes('firlat') ||
+                    norm.includes('launch') || norm.includes('fire');
+    const hasReset = norm.includes('sıfırla') || norm.includes('sifirla') || norm.includes('reset');
+
+    if (!hasFire && !hasReset) return null;
+
+    // 1) "roket N" ile mi?
+    const hasRocketWord = norm.includes('roket') || norm.includes('rocket');
+    if (hasRocketWord) {
+        const n = extractNumber(words, nums);
+        if (n !== null) {
+            // Bu benim numaram mı?
+            if (n === rocketId + 1) {
+                return hasFire ? 'launch' : 'reset';
+            }
+            // Değilse, bu komut başka roketin — yoksay
+            return null;
+        }
+    }
+
+    // 2) Roket adıyla mı? (Sadece benim ismimse)
+    if (matchesMyName(norm)) {
+        return hasFire ? 'launch' : 'reset';
+    }
+
+    return null;
+}
+
+function showVoiceToast(text, type = 'ok') {
+    const el = document.getElementById('voice-toast');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'voice-toast';
+    if (type === 'no-match') el.classList.add('not-matched');
+    if (type === 'error') el.classList.add('error-toast');
+    void el.offsetWidth;
+    el.classList.add('show');
+    clearTimeout(el._timeout);
+    el._timeout = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+async function executeMyCommand(cmd, transcript) {
+    const key = cmd;
+    const now = Date.now();
+    if (key === lastCommandKey && (now - lastCommandTime) < 2000) return;
+    lastCommandKey = key;
+    lastCommandTime = now;
+
+    if (cmd === 'launch') {
+        // Sadece idle ise çalış
+        if (rocket && rocket.status === 'idle') {
+            showVoiceToast(`🎤 ${t('voiceHeard')}: "${transcript}" → ${currentRocket.name} ${t('voiceCommandLaunch')}`, 'ok');
+            playBeep(900, 0.08, 0.15);
+            const gid = `single_${Date.now()}_${rocketId}`;
+            try {
+                isCountdownInitiator = true;
+                await db.collection('rockets').doc(`rocket${rocketId}`).update({
+                    status: 'countdown', groupId: gid,
+                    countdownStart: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (e) {}
+        }
+    } else if (cmd === 'reset') {
+        if (rocket && rocket.status !== 'idle') {
+            showVoiceToast(`🎤 ${t('voiceHeard')}: "${transcript}" → ${currentRocket.name} ${t('voiceCommandReset')}`, 'ok');
+            playBeep(500, 0.1, 0.15);
+            cancelCountdown();
+            rocket.reset();
+            try {
+                await db.collection('rockets').doc(`rocket${rocketId}`).update({
+                    status: 'idle', launchTime: null
+                });
+            } catch (e) {}
+        }
+    }
+}
+
+function initVoiceRecognition() {
+    if (!SpeechRecognition) {
+        showVoiceToast('❌ ' + t('voiceNotSupported'), 'error');
+        return null;
+    }
+    const rec = new SpeechRecognition();
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.maxAlternatives = 3;
+    rec.lang = LANG[currentLang].speechLang;
+
+    rec.onresult = (event) => {
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const res = event.results[i];
+            if (!res.isFinal) continue;
+            for (let k = 0; k < res.length; k++) {
+                const transcript = res[k].transcript.trim();
+                if (!transcript) continue;
+                const cmd = parseMyCommand(transcript);
+                if (cmd) {
+                    executeMyCommand(cmd, transcript);
+                    return;
+                }
+                // Belirsizse: "ateşle" var ama kime ait belirsiz
+                const norm = normalizeText(transcript);
+                if ((norm.includes('ateşle') || norm.includes('atesle') ||
+                    norm.includes('launch') || norm.includes('fire')) &&
+                    (norm.includes('roket') || norm.includes('rocket'))) {
+                    // Başka bir roketin numarasıysa belki kullanıcı karıştırdı, uyarı ver
+                    const n = extractNumber(norm.split(' '), currentLang === 'tr' ? TR_NUMS : EN_NUMS);
+                    if (n !== null && n !== rocketId + 1) {
+                        // Başka roketin komutu — sessizce yoksay
+                    }
+                }
+            }
+        }
+    };
+    rec.onerror = (e) => {
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+            showVoiceToast('❌ ' + t('voiceDenied'), 'error');
+            stopVoice();
+        }
+    };
+    rec.onend = () => {
+        if (voiceActive) {
+            try { rec.start(); } catch (e) {}
+        }
+    };
+    return rec;
+}
+
+function startVoice() {
+    if (!recognition) recognition = initVoiceRecognition();
+    if (!recognition) return;
+    try {
+        recognition.lang = LANG[currentLang].speechLang;
+        recognition.start();
+        voiceActive = true;
+        updateVoiceBtn();
+        showVoiceToast(`🎤 ${t('voiceListening')}: "${currentRocket.name}" / "Roket ${rocketId+1}"`, 'ok');
+    } catch (e) { console.warn(e); }
+}
+function stopVoice() {
+    voiceActive = false;
+    if (recognition) { try { recognition.stop(); } catch (e) {} }
+    updateVoiceBtn();
+}
+function updateVoiceBtn() {
+    if (!voiceBtn) return;
+    if (voiceActive) {
+        voiceBtn.classList.add('listening');
+        voiceBtn.classList.remove('error');
+        voiceBtn.textContent = '● ' + t('voiceListening');
+    } else {
+        voiceBtn.classList.remove('listening', 'error');
+        voiceBtn.textContent = t('voiceStart');
+    }
+}
+if (voiceBtn) {
+    voiceBtn.onclick = () => {
+        if (voiceActive) { stopVoice(); }
+        else { startVoice(); }
+    };
+}
+
 // ==== DİL ====
 function updateLangButtons() {
     rLangTr.classList.toggle('active', currentLang === 'tr');
     rLangEn.classList.toggle('active', currentLang === 'en');
 }
-// Roket ekranındaki TR/EN → SADECE bu ekranı değiştirir
 function setLocalLanguage(lang) {
     currentLang = lang;
     localOverride = lang;
     try { localStorage.setItem('rocket_lang_' + rocketId, lang); } catch (e) {}
     updateLangButtons();
     applyLanguage();
+    if (voiceActive && recognition) {
+        try {
+            recognition.stop();
+            setTimeout(() => { try { recognition.lang = LANG[currentLang].speechLang; recognition.start(); } catch(e){} }, 300);
+        } catch (e) {}
+    }
 }
 rLangTr.onclick = () => setLocalLanguage('tr');
 rLangEn.onclick = () => setLocalLanguage('en');
 
-// Master ekranından gelen dil değişikliklerini dinle
 async function listenToLanguage() {
     db.collection('config').doc('language').onSnapshot(doc => {
         if (doc.exists && doc.data().lang) {
             const masterLang = doc.data().lang;
-            // Yerel override varsa master'ı YOK SAY
             if (!localOverride && masterLang !== currentLang) {
                 currentLang = masterLang;
                 updateLangButtons();
@@ -237,6 +465,7 @@ function applyLanguage() {
     document.getElementById('comparison-title').textContent = t('comparison');
     launchBtn.textContent = t('launchBtn');
     resetBtn.textContent = t('resetBtn');
+    updateVoiceBtn();
     if (rocket) {
         if (rocket.status === 'idle') {
             statusMessage.textContent = `${t('standby')} (${currentRocket.name})`;
@@ -346,588 +575,4 @@ class Rocket {
         comparisonBlock.style.display = 'none';
         if (animationId) cancelAnimationFrame(animationId);
         lastTime = 0;
-        animationId = requestAnimationFrame(animate);
-        triggerShake();
-    }
-    startDescent() {
-        this.status = 'descending';
-        // Roket izi tamamen silinir - iniş sırasında duman kalmaz
-        this.trail = [];
-        this.descentStartY = this.y;
-        this.descentEndY = this.groundY - this.height / 2;
-        this.descentElapsed = 0;
-        statusMessage.textContent = t('descending');
-        statusMessage.style.color = '#88aaff';
-        // Başarı mesajı saydamlaşır
-        successOverlay.classList.add('fade-out');
-        // Stats paneli görünür kalır (sol tarafta)
-        lastTime = 0;
-        if (animationId) cancelAnimationFrame(animationId);
-        animationId = requestAnimationFrame(animate);
-    }
-    update(dt) {
-        if (this.status === 'launching') {
-            this.vy += this.netAcceleration * dt;
-            this.y -= this.vy * dt;
-            this.elapsedTime += dt;
-            this.fuel = Math.max(0, 100 - (this.elapsedTime / this.animationDuration) * 100);
-            const dryMassRatio = 0.3;
-            this.currentMass = this.initialMass * (dryMassRatio + (1 - dryMassRatio) * (this.fuel / 100));
-
-            // Roket izi sadece kalkış sırasında
-            for (let k = 0; k < 3; k++) {
-                this.trail.push({
-                    x: this.x + (Math.random() - 0.5) * 14,
-                    y: this.y + this.height / 2 + Math.random() * 5,
-                    life: 1, size: 8 + Math.random() * 14,
-                    vx: (Math.random() - 0.5) * 30
-                });
-            }
-            if (this.trail.length > 200) this.trail.shift();
-            this.trail.forEach(tt => {
-                tt.life -= dt * 0.8; tt.y += dt * 20; tt.x += tt.vx * dt; tt.size += dt * 15;
-            });
-            this.trail = this.trail.filter(tt => tt.life > 0);
-
-            const startY = this.groundY - this.height / 2;
-            const travelDistance = startY + this.height;
-            const altRatio = Math.min(1, (startY - this.y) / travelDistance);
-            atmosphereEl.style.opacity = String(Math.max(0, 1 - altRatio * 1.2));
-
-            const timeProgress = Math.min(1, this.elapsedTime / this.animationDuration);
-            const realSpeed = this.planet.orbitVelocity * timeProgress;
-            const realAltitude = this.planet.orbitAltitude * altRatio;
-
-            if (realSpeed > this.maxSpeed) this.maxSpeed = realSpeed;
-            if (realAltitude > this.maxAltitude) this.maxAltitude = realAltitude;
-
-            if (this.elapsedTime - lastChartSample > 0.15) {
-                lastChartSample = this.elapsedTime;
-                chartData.push({ t: this.elapsedTime, speed: realSpeed, alt: realAltitude });
-                if (chartData.length > 200) chartData.shift();
-            }
-
-            if (this.y + this.height / 2 < 0) {
-                this.status = 'launched';
-                this.y = -this.height;
-                statusMessage.textContent = '';
-                launchBtn.disabled = false; resetBtn.disabled = false;
-                atmosphereEl.style.opacity = '0';
-                this.maxSpeed = this.planet.orbitVelocity;
-                this.maxAltitude = this.planet.orbitAltitude;
-                showStatsAndSave();
-                this.descentTimeout = setTimeout(() => {
-                    this.startDescent();
-                    this.descentTimeout = null;
-                }, 3000);
-            }
-        } else if (this.status === 'descending') {
-            this.descentElapsed += dt;
-            const progress = Math.min(1, this.descentElapsed / this.descentDuration);
-            const eased = 0.5 * (1 - Math.cos(Math.PI * progress));
-            this.y = this.descentStartY + (this.descentEndY - this.descentStartY) * eased;
-
-            if (progress >= 1) {
-                this.y = this.descentEndY;
-                this.status = 'landed';
-                statusMessage.textContent = t('landed');
-                statusMessage.style.color = '#00cc66';
-                // Başarı mesajı tekrar tam opaklığa döner
-                successOverlay.classList.remove('fade-out');
-            }
-        }
-    }
-    darken(color, factor) {
-        const hex = color.replace('#', '');
-        const r = parseInt(hex.substr(0, 2), 16);
-        const g = parseInt(hex.substr(2, 2), 16);
-        const b = parseInt(hex.substr(4, 2), 16);
-        return `rgb(${Math.floor(r*factor)}, ${Math.floor(g*factor)}, ${Math.floor(b*factor)})`;
-    }
-    draw() {
-        this.trail.forEach(tt => {
-            const alpha = tt.life * 0.5;
-            const grd = ctx.createRadialGradient(tt.x, tt.y, 0, tt.x, tt.y, tt.size);
-            grd.addColorStop(0, `rgba(255, 230, 150, ${alpha})`);
-            grd.addColorStop(0.3, `rgba(200, 150, 100, ${alpha*0.7})`);
-            grd.addColorStop(0.7, `rgba(120, 120, 120, ${alpha*0.4})`);
-            grd.addColorStop(1, `rgba(80, 80, 80, 0)`);
-            ctx.fillStyle = grd;
-            ctx.beginPath(); ctx.arc(tt.x, tt.y, tt.size, 0, Math.PI * 2); ctx.fill();
-        });
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        const w = this.width, h = this.height;
-        ctx.fillStyle = '#cc2222'; ctx.strokeStyle = '#881111'; ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(-w*0.3, h*0.1); ctx.lineTo(-w*0.7, h*0.5); ctx.lineTo(-w*0.3, h*0.45);
-        ctx.closePath(); ctx.fill(); ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(w*0.3, h*0.1); ctx.lineTo(w*0.7, h*0.5); ctx.lineTo(w*0.3, h*0.45);
-        ctx.closePath(); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = '#3a3a3a';
-        ctx.beginPath();
-        ctx.moveTo(-w*0.2, h*0.4); ctx.lineTo(-w*0.32, h*0.5);
-        ctx.lineTo(w*0.32, h*0.5); ctx.lineTo(w*0.2, h*0.4);
-        ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = '#222'; ctx.lineWidth = 1.5; ctx.stroke();
-        const bg = ctx.createLinearGradient(-w*0.3, 0, w*0.3, 0);
-        bg.addColorStop(0, this.darken(this.color, 0.55));
-        bg.addColorStop(0.25, this.color); bg.addColorStop(0.75, this.color);
-        bg.addColorStop(1, this.darken(this.color, 0.55));
-        ctx.fillStyle = bg;
-        ctx.fillRect(-w*0.3, -h*0.3, w*0.6, h*0.7);
-        ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 2;
-        ctx.strokeRect(-w*0.3, -h*0.3, w*0.6, h*0.7);
-        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-        ctx.fillRect(-w*0.3, -h*0.05, w*0.6, 4);
-        ctx.fillRect(-w*0.3, h*0.12, w*0.6, 4);
-        ctx.fillStyle = '#cc2222';
-        ctx.beginPath();
-        ctx.moveTo(0, -h*0.5); ctx.lineTo(w*0.3, -h*0.3); ctx.lineTo(-w*0.3, -h*0.3);
-        ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = '#881111'; ctx.lineWidth = 2; ctx.stroke();
-        ctx.fillStyle = 'rgba(255,255,255,0.25)';
-        ctx.beginPath();
-        ctx.moveTo(-w*0.15, -h*0.42); ctx.lineTo(0, -h*0.5); ctx.lineTo(-w*0.05, -h*0.32);
-        ctx.closePath(); ctx.fill();
-        ctx.fillStyle = 'rgba(100,180,255,0.95)';
-        ctx.beginPath(); ctx.arc(0, -h*0.12, w*0.15, 0, Math.PI*2); ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 3; ctx.stroke();
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.beginPath(); ctx.arc(-w*0.05, -h*0.15, w*0.05, 0, Math.PI*2); ctx.fill();
-        if (this.status === 'launching' && this.fuel > 0) {
-            const fl = 60 + Math.random() * 40;
-            const fw = w * 0.55;
-            const fg = ctx.createLinearGradient(0, h*0.5, 0, h*0.5 + fl);
-            fg.addColorStop(0, '#ffffff'); fg.addColorStop(0.15, '#ffff00');
-            fg.addColorStop(0.4, '#ff8800'); fg.addColorStop(0.75, '#ff2200');
-            fg.addColorStop(1, 'rgba(200,0,0,0)');
-            ctx.fillStyle = fg;
-            ctx.beginPath();
-            ctx.moveTo(-fw/2, h*0.5);
-            ctx.quadraticCurveTo(-fw*0.7, h*0.5 + fl*0.6, 0, h*0.5 + fl);
-            ctx.quadraticCurveTo(fw*0.7, h*0.5 + fl*0.6, fw/2, h*0.5);
-            ctx.closePath(); ctx.fill();
-            ctx.fillStyle = 'rgba(255,255,220,0.9)';
-            ctx.beginPath();
-            ctx.moveTo(-fw*0.2, h*0.5);
-            ctx.quadraticCurveTo(0, h*0.5 + fl*0.5, 0, h*0.5 + fl*0.7);
-            ctx.quadraticCurveTo(0, h*0.5 + fl*0.5, fw*0.2, h*0.5);
-            ctx.closePath(); ctx.fill();
-        }
-        ctx.restore();
-    }
-}
-
-// ==== İSTATİSTİKLER ====
-async function showStatsAndSave() {
-    const realTime = rocket.elapsedTime * rocket.timeMultiplier;
-    const fuelUsed = 100 - rocket.fuel;
-    const maxSpeed = rocket.planet.orbitVelocity;
-    const maxAlt = rocket.planet.orbitAltitude;
-
-    statValTime.textContent = formatTime(realTime);
-    statValFuel.textContent = `%${fuelUsed.toFixed(1)}`;
-    statValSpeed.textContent = `${Math.round(maxSpeed).toLocaleString('tr-TR')} m/s`;
-    statValAlt.textContent = formatAltitude(maxAlt);
-
-    // Başarı mesajı ortada, istatistikler sol tarafta
-    successOverlay.classList.add('active');
-    statsPanel.style.display = 'block';
-
-    try {
-        await db.collection('rockets').doc(`rocket${rocketId}`).update({
-            status: 'launched',
-            stats: {
-                elapsedTime: realTime,
-                fuelUsed: fuelUsed,
-                maxSpeed: maxSpeed,
-                maxAltitude: maxAlt,
-                completedAt: Date.now()
-            }
-        });
-    } catch (e) { console.warn(e); }
-
-    if (currentGroupId && currentGroupId.startsWith('group_')) {
-        startComparisonListener();
-    }
-}
-
-function startComparisonListener() {
-    if (comparisonUnsub) comparisonUnsub();
-    const q = db.collection('rockets').where('groupId', '==', currentGroupId);
-
-    comparisonUnsub = q.onSnapshot(snap => {
-        const rows = [];
-        snap.forEach(doc => {
-            const d = doc.data();
-            const id = parseInt(doc.id.replace('rocket', ''));
-            rows.push({
-                id, name: ROCKETS[id]?.name || doc.id,
-                stats: d.stats || null,
-                status: d.status
-            });
-        });
-        if (rows.length <= 1) return;
-
-        const done = rows.filter(r => r.stats && r.stats.elapsedTime).sort((a, b) => a.stats.elapsedTime - b.stats.elapsedTime);
-        const pending = rows.filter(r => !r.stats || !r.stats.elapsedTime);
-
-        comparisonList.innerHTML = '';
-        done.forEach((r, i) => {
-            const row = document.createElement('div');
-            row.className = 'comparison-row' + (r.id === rocketId ? ' is-me' : '');
-            const rank = i + 1;
-            const cls = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
-            row.innerHTML = `
-                <span class="comparison-rank ${cls}">${rank}.</span>
-                <span class="comparison-name">${r.name}${r.id === rocketId ? ' ←' : ''}</span>
-                <span class="comparison-time">${formatTime(r.stats.elapsedTime)}${rank === 1 ? ' ⚡' : ''}</span>
-            `;
-            comparisonList.appendChild(row);
-        });
-        pending.forEach(r => {
-            const row = document.createElement('div');
-            row.className = 'comparison-row pending';
-            row.innerHTML = `
-                <span class="comparison-rank">-</span>
-                <span class="comparison-name">${r.name}</span>
-                <span class="comparison-time">${t('pending')}...</span>
-            `;
-            comparisonList.appendChild(row);
-        });
-
-        comparisonBlock.style.display = 'block';
-    });
-}
-
-// ==== BİLGİ PANELİ ====
-function updateInfoPanel() {
-    if (!rocket) return;
-    const startY = rocket.groundY - rocket.height / 2;
-    const travelDistance = startY + rocket.height;
-    const timeProgress = Math.min(1, rocket.elapsedTime / rocket.animationDuration);
-    const altitudeProgress = Math.min(1, Math.max(0, (startY - rocket.y) / travelDistance));
-
-    const realTime = rocket.elapsedTime * rocket.timeMultiplier;
-    const realSpeed = rocket.planet.orbitVelocity * timeProgress;
-    const realAltitude = rocket.planet.orbitAltitude * altitudeProgress;
-    const realAccel = rocket.status === 'launching'
-        ? rocket.planet.orbitVelocity / rocket.realFlightTime
-        : 0;
-
-    infoSpeed.textContent = `${Math.round(realSpeed).toLocaleString('tr-TR')} m/s`;
-    infoAccel.textContent = `${Math.round(realAccel).toLocaleString('tr-TR')} m/s²`;
-    infoFuel.textContent = `${Math.round(rocket.fuel)}%`;
-    infoMass.textContent = `${(rocket.currentMass / 1000).toFixed(1)} t`;
-    infoAltitude.textContent = formatAltitude(realAltitude);
-    infoTime.textContent = formatTime(realTime);
-
-    if (rocket.fuel < 30) infoFuel.style.color = '#ff4444';
-    else if (rocket.fuel < 60) infoFuel.style.color = '#ffaa00';
-    else infoFuel.style.color = '#00cc66';
-}
-
-// ==== GRAFİK ====
-function drawChart() {
-    const w = chartCanvas.width, h = chartCanvas.height;
-    chartCtx.clearRect(0, 0, w, h);
-    chartCtx.strokeStyle = 'rgba(255,255,255,0.08)'; chartCtx.lineWidth = 1;
-    for (let i = 1; i < 4; i++) {
-        chartCtx.beginPath(); chartCtx.moveTo(0, (h/4)*i); chartCtx.lineTo(w, (h/4)*i); chartCtx.stroke();
-    }
-    if (chartData.length < 2) {
-        chartCtx.fillStyle = 'rgba(255,255,255,0.2)';
-        chartCtx.font = '11px monospace'; chartCtx.textAlign = 'center';
-        chartCtx.fillText(t('waitingData'), w/2, h/2);
-        return;
-    }
-    const maxSpeed = Math.max(...chartData.map(d => d.speed), 1);
-    const maxAlt = Math.max(...chartData.map(d => d.alt), 1);
-    const maxT = chartData[chartData.length - 1].t || 1;
-    const pad = 4, iw = w - pad*2, ih = h - pad*2;
-    chartCtx.strokeStyle = '#ffaa00'; chartCtx.lineWidth = 2;
-    chartCtx.beginPath();
-    chartData.forEach((d, i) => {
-        const x = pad + (d.t/maxT)*iw, y = h - pad - (d.speed/maxSpeed)*ih;
-        i === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y);
-    });
-    chartCtx.stroke();
-    chartCtx.strokeStyle = '#00ccff';
-    chartCtx.beginPath();
-    chartData.forEach((d, i) => {
-        const x = pad + (d.t/maxT)*iw, y = h - pad - (d.alt/maxAlt)*ih;
-        i === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y);
-    });
-    chartCtx.stroke();
-}
-
-// ==== GEZEGEN ÇİZİMİ ====
-function drawPlanet() {
-    if (!rocket) return;
-    const groundY = getGroundY();
-    const curveHeight = 90;
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(0, canvas.height);
-    ctx.lineTo(0, groundY + curveHeight);
-    ctx.quadraticCurveTo(canvas.width/2, groundY - curveHeight, canvas.width, groundY + curveHeight);
-    ctx.lineTo(canvas.width, canvas.height);
-    ctx.closePath();
-    const pg = ctx.createLinearGradient(0, groundY - curveHeight, 0, canvas.height);
-    pg.addColorStop(0, rocket.planet.color);
-    pg.addColorStop(1, rocket.darken(rocket.planet.color, 0.3));
-    ctx.fillStyle = pg; ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(0, groundY + curveHeight);
-    ctx.quadraticCurveTo(canvas.width/2, groundY - curveHeight, canvas.width, groundY + curveHeight);
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(0,0,0,0.18)';
-    for (let i = 0; i < 18; i++) {
-        const x = (i*137 + 50) % canvas.width;
-        const y = groundY + 30 + Math.sin(i)*30 + (i*23) % 50;
-        const r = 5 + (i*7) % 18;
-        ctx.beginPath(); ctx.ellipse(x, y, r, r*0.5, 0, 0, Math.PI*2); ctx.fill();
-    }
-    ctx.restore();
-
-    const planetName = currentLang === 'tr' ? rocket.rocketData.planet : rocket.planet.nameEn;
-    ctx.save();
-    ctx.textAlign = 'right';
-    ctx.font = 'bold 60px Arial';
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
-    ctx.fillText(planetName.toUpperCase(), canvas.width - 30, canvas.height - 100);
-    ctx.font = 'bold 18px Arial';
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.fillText(`${t('gravity')}: ${rocket.planet.gravity} m/s²  •  ${t('escapeVel')}: ${rocket.planet.escapeVelocity} km/s`, canvas.width - 30, canvas.height - 65);
-    ctx.restore();
-}
-
-// ==== YILDIZLAR ====
-function initStars() {
-    stars = [];
-    for (let i = 0; i < 130; i++) {
-        stars.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
-            radius: Math.random() * 1.5,
-            brightness: Math.random()
-        });
-    }
-}
-function drawStars() {
-    stars.forEach(s => {
-        ctx.fillStyle = `rgba(255,255,255,${s.brightness})`;
-        ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2); ctx.fill();
-    });
-}
-function spawnShootingStar() {
-    if (Math.random() < 0.012 && shootingStars.length < 3) {
-        shootingStars.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height * 0.5,
-            vx: -(4 + Math.random()*4), vy: 2 + Math.random()*3, life: 1
-        });
-    }
-}
-function updateAndDrawShootingStars(dt) {
-    spawnShootingStar();
-    shootingStars.forEach(s => {
-        s.x += s.vx * 60 * dt; s.y += s.vy * 60 * dt; s.life -= dt * 0.6;
-        if (s.life > 0) {
-            const g = ctx.createLinearGradient(s.x, s.y, s.x - s.vx*10, s.y - s.vy*10);
-            g.addColorStop(0, `rgba(255,255,255,${s.life})`);
-            g.addColorStop(0.5, `rgba(180,200,255,${s.life*0.5})`);
-            g.addColorStop(1, 'rgba(255,255,255,0)');
-            ctx.strokeStyle = g; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx*10, s.y - s.vy*10); ctx.stroke();
-            ctx.fillStyle = `rgba(255,255,255,${s.life})`;
-            ctx.beginPath(); ctx.arc(s.x, s.y, 2, 0, Math.PI*2); ctx.fill();
-        }
-    });
-    shootingStars = shootingStars.filter(s => s.life > 0 && s.y < canvas.height && s.x > -100);
-}
-
-// ==== ANİMASYON ====
-let lastTime = 0;
-function animate(time) {
-    const dt = Math.min((time - lastTime) / 1000, 0.05);
-    lastTime = time;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawStars(); updateAndDrawShootingStars(dt); drawPlanet();
-    if (rocket) {
-        rocket.update(dt); rocket.draw();
-        updateInfoPanel(); drawChart();
-        if (rocket.status === 'launching' || rocket.status === 'descending') {
-            animationId = requestAnimationFrame(animate);
-        } else {
-            animationId = null;
-        }
-    }
-}
-function drawScene() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawStars(); drawPlanet();
-    if (rocket) rocket.draw();
-    updateInfoPanel(); drawChart();
-}
-
-// ==== GERİ SAYIM ====
-function runLocalCountdown() {
-    if (countdownTimer) return;
-    let count = 3;
-    countdownOverlay.classList.add('active');
-    countdownNumber.textContent = count;
-    countdownNumber.style.animation = 'none';
-    void countdownNumber.offsetWidth;
-    countdownNumber.style.animation = 'countdownPulse 0.8s ease-out';
-    playWarningSound();
-    speak(LANG[currentLang].speech[0]);
-    statusMessage.textContent = t('countdown');
-    statusMessage.style.color = '#ffcc00';
-    launchBtn.disabled = true;
-
-    countdownTimer = setInterval(() => {
-        count--;
-        if (count > 0) {
-            countdownNumber.textContent = count;
-            countdownNumber.style.animation = 'none';
-            void countdownNumber.offsetWidth;
-            countdownNumber.style.animation = 'countdownPulse 0.8s ease-out';
-            speak(LANG[currentLang].speech[3 - count]);
-            playWarningSound();
-        } else {
-            clearInterval(countdownTimer);
-            countdownTimer = null;
-            countdownOverlay.classList.remove('active');
-            speak(LANG[currentLang].speech[3]);
-            playLaunchSound();
-            rocket.start();
-            if (isCountdownInitiator) {
-                db.collection('rockets').doc(`rocket${rocketId}`).update({
-                    status: 'launching',
-                    launchTime: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                isCountdownInitiator = false;
-            }
-        }
-    }, 1000);
-}
-function cancelCountdown() {
-    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
-    countdownOverlay.classList.remove('active');
-}
-
-// ==== YEREL BUTONLAR ====
-launchBtn.onclick = async () => {
-    playBeep(900, 0.08, 0.15);
-    const gid = `single_${Date.now()}_${rocketId}`;
-    try {
-        isCountdownInitiator = true;
-        await db.collection('rockets').doc(`rocket${rocketId}`).update({
-            status: 'countdown',
-            groupId: gid,
-            countdownStart: firebase.firestore.FieldValue.serverTimestamp()
-        });
-    } catch (e) {}
-};
-resetBtn.onclick = async () => {
-    playBeep(500, 0.1, 0.15);
-    cancelCountdown();
-    if (rocket) rocket.reset();
-    try {
-        await db.collection('rockets').doc(`rocket${rocketId}`).update({
-            status: 'idle', launchTime: null
-        });
-    } catch (e) {}
-};
-
-// ==== DİNLEYİCİ ====
-function listenToRocket() {
-    db.collection('rockets').doc(`rocket${rocketId}`).onSnapshot(doc => {
-        if (!doc.exists) return;
-        const data = doc.data();
-        if (data.groupId) currentGroupId = data.groupId;
-
-        if (!initialSnapshotDone) {
-            initialSnapshotDone = true;
-            if (data.status === 'launched') {
-                rocket.status = 'landed';
-                rocket.y = rocket.groundY - rocket.height / 2;
-                if (data.stats) {
-                    statValTime.textContent = formatTime(data.stats.elapsedTime);
-                    statValFuel.textContent = `%${data.stats.fuelUsed.toFixed(1)}`;
-                    statValSpeed.textContent = `${Math.round(data.stats.maxSpeed).toLocaleString('tr-TR')} m/s`;
-                    statValAlt.textContent = formatAltitude(data.stats.maxAltitude);
-                }
-                successOverlay.classList.add('active');
-                statsPanel.style.display = 'block';
-                launchBtn.disabled = false; resetBtn.disabled = false;
-                atmosphereEl.style.opacity = '0';
-                if (currentGroupId && currentGroupId.startsWith('group_')) startComparisonListener();
-                drawScene();
-            } else if (data.status === 'countdown') {
-                runLocalCountdown();
-            } else if (data.status === 'launching') {
-                playLaunchSound(); rocket.start();
-            }
-            return;
-        }
-
-        if (data.status === 'countdown') {
-            if (!countdownTimer && rocket.status !== 'launching') {
-                if (rocket.status !== 'idle') rocket.reset();
-                runLocalCountdown();
-            }
-        } else if (data.status === 'launching') {
-            if (rocket.status !== 'launching' && !countdownTimer) {
-                cancelCountdown(); playLaunchSound(); rocket.start();
-            }
-        } else if (data.status === 'launched') {
-            const localStates = ['launching', 'launched', 'descending', 'landed'];
-            if (!localStates.includes(rocket.status)) {
-                rocket.status = 'launched';
-                launchBtn.disabled = false; resetBtn.disabled = false;
-                if (data.stats) {
-                    statValTime.textContent = formatTime(data.stats.elapsedTime);
-                    statValFuel.textContent = `%${data.stats.fuelUsed.toFixed(1)}`;
-                    statValSpeed.textContent = `${Math.round(data.stats.maxSpeed).toLocaleString('tr-TR')} m/s`;
-                    statValAlt.textContent = formatAltitude(data.stats.maxAltitude);
-                }
-                successOverlay.classList.add('active');
-                statsPanel.style.display = 'block';
-                atmosphereEl.style.opacity = '0';
-            }
-        } else if (data.status === 'idle') {
-            if (rocket.status !== 'idle' && !countdownTimer) {
-                cancelCountdown(); rocket.reset();
-            }
-        }
-    });
-}
-
-// ==== BAŞLATMA ====
-async function init() {
-    // Yerel override yoksa master dilini kullan
-    if (!localOverride) {
-        try {
-            const d = await db.collection('config').doc('language').get();
-            if (d.exists && d.data().lang) currentLang = d.data().lang;
-        } catch (e) {}
-    }
-    updateLangButtons();
-
-    resizeCanvas(); initStars();
-    rocket = new Rocket(rocketId, currentPlanet, currentRocket);
-    statusMessage.textContent = `${t('standby')} (${currentRocket.name})`;
-    resetBtn.disabled = true;
-    atmosphereEl.style.opacity = '1';
-    applyLanguage();
-    drawScene();
-    listenToLanguage();
-    listenToRocket();
-    document.body.addEventListener('click', () => getAudioCtx(), { once: true });
-}
-init();
+        animationId =

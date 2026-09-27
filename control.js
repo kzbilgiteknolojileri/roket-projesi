@@ -1,4 +1,4 @@
-// ==== ROKET VE GEZEGEN VERİLERİ ====
+// ==== VERİLER ====
 const PLANETS = {
     'Merkür':  { nameEn: 'Mercury', gravity: 3.7,  escapeVelocity: 4.3,  color: '#8c8c8c' },
     'Venüs':   { nameEn: 'Venus',   gravity: 8.87, escapeVelocity: 10.3, color: '#e6b800' },
@@ -34,18 +34,23 @@ const LANG = {
         launchAll: '🔥 TÜMÜNÜ ATEŞLE',
         stopAll: '⏹ TÜMÜNÜ DURDUR',
         resetAll: '🔄 TÜMÜNÜ SIFIRLA',
-        standby: 'BEKLİYOR',
-        countdown: 'GERİ SAYIM',
-        launched: 'ATEŞLENDİ',
-        complete: 'TAMAMLANDI',
+        standby: 'BEKLİYOR', countdown: 'GERİ SAYIM',
+        launched: 'ATEŞLENDİ', complete: 'TAMAMLANDI',
         launch: '🚀 ATEŞLE',
         loginTitle: 'Kontrol Merkezi',
         loginSub: 'Yetkili giriş gereklidir',
-        loginPass: 'Şifre',
-        loginBtn: 'GİRİŞ YAP',
+        loginPass: 'Şifre', loginBtn: 'GİRİŞ YAP',
         loginError: '❌ Hatalı şifre!',
-        speech: ['Üç', 'İki', 'Bir', 'Ateş!'],
-        speechLang: 'tr-TR'
+        speech: ['Üç', 'İki', 'Bir', 'Ateş!'], speechLang: 'tr-TR',
+        voiceStart: 'SESLİ DENETİM', voiceListening: 'DİNLİYOR',
+        voiceHeard: 'Duyuldu', voiceNoMatch: 'Anlaşılamadı',
+        voiceLaunchAll: 'Tüm roketler ateşlendi!',
+        voiceStopAll: 'Tüm roketler durduruldu!',
+        voiceResetAll: 'Tüm roketler sıfırlandı!',
+        voiceLaunchOne: 'ateşlendi', voiceResetOne: 'sıfırlandı',
+        voiceDenied: 'Mikrofon izni verilmedi',
+        voiceNotSupported: 'Tarayıcı desteklemiyor',
+        voiceNoSpeech: 'Ses algılanamadı'
     },
     en: {
         title: '🚀 ROCKET CONTROL CENTER',
@@ -53,23 +58,27 @@ const LANG = {
         launchAll: '🔥 LAUNCH ALL',
         stopAll: '⏹ STOP ALL',
         resetAll: '🔄 RESET ALL',
-        standby: 'STANDBY',
-        countdown: 'COUNTDOWN',
-        launched: 'LAUNCHED',
-        complete: 'COMPLETE',
+        standby: 'STANDBY', countdown: 'COUNTDOWN',
+        launched: 'LAUNCHED', complete: 'COMPLETE',
         launch: '🚀 LAUNCH',
         loginTitle: 'Control Center',
         loginSub: 'Authorized access required',
-        loginPass: 'Password',
-        loginBtn: 'LOG IN',
+        loginPass: 'Password', loginBtn: 'LOG IN',
         loginError: '❌ Wrong password!',
-        speech: ['Three', 'Two', 'One', 'Fire!'],
-        speechLang: 'en-US'
+        speech: ['Three', 'Two', 'One', 'Fire!'], speechLang: 'en-US',
+        voiceStart: 'VOICE CONTROL', voiceListening: 'LISTENING',
+        voiceHeard: 'Heard', voiceNoMatch: 'Not understood',
+        voiceLaunchAll: 'All rockets launched!',
+        voiceStopAll: 'All rockets stopped!',
+        voiceResetAll: 'All rockets reset!',
+        voiceLaunchOne: 'launched', voiceResetOne: 'reset',
+        voiceDenied: 'Microphone permission denied',
+        voiceNotSupported: 'Browser not supported',
+        voiceNoSpeech: 'No speech detected'
     }
 };
-
 let currentLang = 'tr';
-function t(key) { return LANG[currentLang][key] || key; }
+function t(k) { return LANG[currentLang][k] || k; }
 
 // ==== SES ====
 let audioCtx = null;
@@ -132,38 +141,237 @@ function speak(text) {
     } catch (e) {}
 }
 
-// ==== DİL ====
-function applyLanguage() {
-    document.getElementById('header-title').textContent = t('title');
-    document.getElementById('live-text').textContent = t('live');
-    document.getElementById('launch-all').textContent = t('launchAll');
-    document.getElementById('stop-all').textContent = t('stopAll');
-    document.getElementById('reset-all').textContent = t('resetAll');
-    document.getElementById('login-title').textContent = t('loginTitle');
-    document.getElementById('login-sub').textContent = t('loginSub');
-    document.getElementById('password-input').placeholder = t('loginPass');
-    document.getElementById('login-btn').textContent = t('loginBtn');
+// ==== SESLİ KOMUT (MASTER) ====
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let voiceActive = false;
+let lastCommandTime = 0;
+let lastCommandKey = '';
 
-    document.getElementById('lang-tr').classList.toggle('active', currentLang === 'tr');
-    document.getElementById('lang-en').classList.toggle('active', currentLang === 'en');
+// Türkçe sayı haritası
+const TR_NUMS = {
+    'bir': 1, '1': 1, 'iki': 2, '2': 2, 'üç': 3, 'uc': 3, '3': 3,
+    'dört': 4, 'dort': 4, '4': 4, 'beş': 5, 'bes': 5, '5': 5,
+    'altı': 6, 'alti': 6, '6': 6, 'yedi': 7, '7': 7,
+    'sekiz': 8, '8': 8, 'dokuz': 9, '9': 9
+};
+const EN_NUMS = {
+    'one': 1, '1': 1, 'two': 2, '2': 2, 'three': 3, '3': 3,
+    'four': 4, '4': 4, 'five': 5, '5': 5, 'six': 6, '6': 6,
+    'seven': 7, '7': 7, 'eight': 8, '8': 8, 'nine': 9, '9': 9
+};
 
-    // Tile'ları yeniden oluştur
-    if (initialized) createRocketTiles();
+// Roket isim aliases (Master için, roket adıyla komut)
+const ROCKET_ALIASES = {
+    0: ['saturn v', 'saturn bes', 'saturn beş', 'saturn 5', 'saturn'],
+    1: ['falcon 9', 'falcon nine', 'falcon dokuz', 'falcon'],
+    2: ['ariane 5', 'ariane bes', 'ariane beş', 'ariane'],
+    3: ['soyuz fg', 'soyuz', 'soyuz f g'],
+    4: ['long march 5', 'long march bes', 'long march beş', 'long march'],
+    5: ['h iia', 'h i i a', 'h 2 a', 'h2a'],
+    6: ['delta iv heavy', 'delta 4 heavy', 'delta heavy', 'delta'],
+    7: ['proton m', 'proton'],
+    8: ['electron']
+};
+
+function normalizeText(text) {
+    return text.toLowerCase()
+        .replace(/[.,!?;:'"()\[\]{}]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+function extractNumber(words, nums) {
+    for (const w of words) {
+        if (nums[w] !== undefined) return nums[w];
+    }
+    return null;
+}
+function matchesAlias(norm, rocketIdx) {
+    const aliases = ROCKET_ALIASES[rocketIdx] || [];
+    return aliases.some(a => norm.includes(a));
 }
 
-async function setLanguage(lang) {
-    try {
-        await db.collection('config').doc('language').set({ lang }, { merge: true });
-    } catch (e) { console.warn(e); }
-}
+// Master sesli komut çözümleyici
+function parseMasterCommand(transcript) {
+    const norm = normalizeText(transcript);
+    const words = norm.split(' ');
+    const nums = currentLang === 'tr' ? TR_NUMS : EN_NUMS;
 
-function listenToLanguage() {
-    db.collection('config').doc('language').onSnapshot(doc => {
-        if (doc.exists && doc.data().lang && doc.data().lang !== currentLang) {
-            currentLang = doc.data().lang;
-            applyLanguage();
+    const hasFire = /\b(ateşle|atesle|fırlat|firlat|başlat|baslat|launch|fire|start)\b/.test(norm) ||
+                    norm.includes('ateşle') || norm.includes('atesle') ||
+                    norm.includes('fırlat') || norm.includes('firlat') ||
+                    norm.includes('başlat') || norm.includes('baslat') ||
+                    norm.includes('launch') || norm.includes('fire') || norm.includes('start');
+    const hasStop = norm.includes('durdur') || norm.includes('dur ') || norm.endsWith(' dur') ||
+                    norm.includes('stop') || norm.includes('halt');
+    const hasReset = norm.includes('sıfırla') || norm.includes('sifirla') || norm.includes('reset');
+
+    if (!hasFire && !hasStop && !hasReset) return null;
+
+    // "Tümünü / hepsini / all" tespiti
+    const hasAll = norm.includes('tümünü') || norm.includes('tumunu') ||
+                   norm.includes('hepsini') || norm.includes('hepsi') ||
+                   norm.includes('tüm roket') || norm.includes('tum roket') ||
+                   norm.includes('all') || norm.includes('everything');
+
+    if (hasAll) {
+        if (hasFire) return { type: 'launch-all' };
+        if (hasStop) return { type: 'stop-all' };
+        if (hasReset) return { type: 'reset-all' };
+    }
+
+    // Tek roket: "roket N" veya "roket adı"
+    if (norm.includes('roket') || norm.includes('rocket')) {
+        const n = extractNumber(words, nums);
+        if (n !== null && n >= 1 && n <= 9) {
+            if (hasFire) return { type: 'launch-one', id: n - 1 };
+            if (hasReset) return { type: 'reset-one', id: n - 1 };
         }
-    });
+    }
+
+    // Roket adıyla: "Saturn V ateşle"
+    for (let i = 0; i < rocketCount; i++) {
+        if (matchesAlias(norm, i)) {
+            if (hasFire) return { type: 'launch-one', id: i };
+            if (hasReset) return { type: 'reset-one', id: i };
+        }
+    }
+
+    return null;
+}
+
+// Duyulan metni ekranda göster
+function showVoiceToast(text, type = 'ok') {
+    const el = document.getElementById('voice-toast');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'voice-toast';
+    if (type === 'no-match') el.classList.add('not-matched');
+    if (type === 'error') el.classList.add('error-toast');
+    // Force reflow
+    void el.offsetWidth;
+    el.classList.add('show');
+    clearTimeout(el._timeout);
+    el._timeout = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// Komutları tetikle
+async function executeMasterCommand(cmd, transcript) {
+    // Debounce: aynı komut 2 saniye içinde tekrarlanmasın
+    const key = JSON.stringify(cmd);
+    const now = Date.now();
+    if (key === lastCommandKey && (now - lastCommandTime) < 2000) return;
+    lastCommandKey = key;
+    lastCommandTime = now;
+
+    if (cmd.type === 'launch-all') {
+        showVoiceToast(`🎤 ${t('voiceHeard')}: "${transcript}" → ${t('voiceLaunchAll')}`, 'ok');
+        playSuccessSound();
+        await launchAll();
+    } else if (cmd.type === 'stop-all') {
+        showVoiceToast(`🎤 ${t('voiceHeard')}: "${transcript}" → ${t('voiceStopAll')}`, 'ok');
+        playWarningSound();
+        await stopAll();
+    } else if (cmd.type === 'reset-all') {
+        showVoiceToast(`🎤 ${t('voiceHeard')}: "${transcript}" → ${t('voiceResetAll')}`, 'ok');
+        playClickSound();
+        await resetAll();
+    } else if (cmd.type === 'launch-one') {
+        const rn = ROCKETS[cmd.id].name;
+        showVoiceToast(`🎤 ${t('voiceHeard')}: "${transcript}" → ${rn} ${t('voiceLaunchOne')}`, 'ok');
+        playClickSound();
+        await startCountdown(cmd.id);
+    } else if (cmd.type === 'reset-one') {
+        const rn = ROCKETS[cmd.id].name;
+        showVoiceToast(`🎤 ${t('voiceHeard')}: "${transcript}" → ${rn} ${t('voiceResetOne')}`, 'ok');
+        playClickSound();
+        await resetRocket(cmd.id);
+    }
+}
+
+function initVoiceRecognition() {
+    if (!SpeechRecognition) {
+        showVoiceToast('❌ ' + t('voiceNotSupported'), 'error');
+        return null;
+    }
+    const rec = new SpeechRecognition();
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.maxAlternatives = 3;
+    rec.lang = LANG[currentLang].speechLang;
+
+    rec.onresult = (event) => {
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const res = event.results[i];
+            if (!res.isFinal) continue;
+            for (let k = 0; k < res.length; k++) {
+                const transcript = res[k].transcript.trim();
+                if (!transcript) continue;
+                const cmd = parseMasterCommand(transcript);
+                if (cmd) {
+                    executeMasterCommand(cmd, transcript);
+                    return;
+                } else {
+                    // Sadece "ateşle" gibi belirsiz bir şeyse uyarı göster
+                    const norm = normalizeText(transcript);
+                    if (norm.includes('ateşle') || norm.includes('atesle') ||
+                        norm.includes('launch') || norm.includes('fire')) {
+                        showVoiceToast(`🎤 "${transcript}" — ${t('voiceNoMatch')}`, 'no-match');
+                    }
+                }
+            }
+        }
+    };
+    rec.onerror = (e) => {
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+            showVoiceToast('❌ ' + t('voiceDenied'), 'error');
+            stopVoice();
+        } else if (e.error === 'no-speech') {
+            // sessizlik - görmezden gel
+        } else {
+            console.warn('Speech error:', e.error);
+        }
+    };
+    rec.onend = () => {
+        if (voiceActive) {
+            try { rec.start(); } catch (e) {}
+        }
+    };
+    return rec;
+}
+
+function startVoice() {
+    if (!recognition) recognition = initVoiceRecognition();
+    if (!recognition) return;
+    try {
+        recognition.lang = LANG[currentLang].speechLang;
+        recognition.start();
+        voiceActive = true;
+        updateVoiceBtn();
+        showVoiceToast(`🎤 ${t('voiceListening')}...`, 'ok');
+    } catch (e) {
+        console.warn(e);
+    }
+}
+function stopVoice() {
+    voiceActive = false;
+    if (recognition) {
+        try { recognition.stop(); } catch (e) {}
+    }
+    updateVoiceBtn();
+}
+function updateVoiceBtn() {
+    const btn = document.getElementById('voice-btn');
+    const txt = document.getElementById('voice-text');
+    if (!btn || !txt) return;
+    if (voiceActive) {
+        btn.classList.add('listening');
+        btn.classList.remove('error');
+        txt.textContent = '● ' + t('voiceListening');
+    } else {
+        btn.classList.remove('listening');
+        txt.textContent = t('voiceStart');
+    }
 }
 
 // ==== LOGIN ====
@@ -198,8 +406,26 @@ function attemptLogin() {
 }
 loginBtn.onclick = attemptLogin;
 passwordInput.addEventListener('keypress', e => { if (e.key === 'Enter') attemptLogin(); });
+
+// Dil değiştirme (master → global)
+async function setLanguage(lang) {
+    try { await db.collection('config').doc('language').set({ lang }, { merge: true }); } catch (e) {}
+}
 document.getElementById('lang-tr').onclick = () => setLanguage('tr');
 document.getElementById('lang-en').onclick = () => setLanguage('en');
+
+// Sesli denetim buton
+const voiceBtn = document.getElementById('voice-btn');
+if (voiceBtn) {
+    voiceBtn.onclick = () => {
+        if (voiceActive) {
+            stopVoice();
+            showVoiceToast('🎤 ' + (currentLang === 'tr' ? 'Sesli denetim kapatıldı' : 'Voice control off'), 'ok');
+        } else {
+            startVoice();
+        }
+    };
+}
 
 // ==== ARAYÜZ ====
 const controlsContainer = document.getElementById('rocket-controls');
@@ -218,7 +444,6 @@ function createRocketTiles() {
         const tile = document.createElement('div');
         tile.className = 'rocket-tile idle';
         tile.id = `rocket-tile-${i}`;
-
         tile.innerHTML = `
             <div class="tile-header">
                 <div class="tile-live"><span class="tile-live-dot"></span>LIVE</div>
@@ -241,8 +466,6 @@ function createRocketTiles() {
         document.getElementById(`launch-btn-${i}`).onclick = () => startCountdown(i, null);
         document.getElementById(`reset-btn-${i}`).onclick = () => resetRocket(i);
     }
-
-    // Mevcut durumları Firestore'dan yeniden çekip uygula
     if (lastKnownStatuses.length === rocketCount) {
         for (let i = 0; i < rocketCount; i++) {
             if (lastKnownStatuses[i]) updateRocketUI(i, lastKnownStatuses[i]);
@@ -262,17 +485,14 @@ async function startCountdown(id, groupId) {
     const gid = groupId || `single_${Date.now()}_${id}`;
     try {
         await db.collection('rockets').doc(`rocket${id}`).update({
-            status: 'countdown',
-            groupId: gid,
+            status: 'countdown', groupId: gid,
             countdownStart: firebase.firestore.FieldValue.serverTimestamp()
         });
     } catch (e) {
         try {
             await db.collection('rockets').doc(`rocket${id}`).set({
-                planet: ROCKETS[id].planet,
-                name: ROCKETS[id].name,
-                status: 'countdown',
-                groupId: gid,
+                planet: ROCKETS[id].planet, name: ROCKETS[id].name,
+                status: 'countdown', groupId: gid,
                 countdownStart: firebase.firestore.FieldValue.serverTimestamp()
             });
         } catch (e2) {}
@@ -280,13 +500,10 @@ async function startCountdown(id, groupId) {
 }
 async function stopRocket(id) {
     try {
-        await db.collection('rockets').doc(`rocket${id}`).update({
-            status: 'idle', launchTime: null
-        });
+        await db.collection('rockets').doc(`rocket${id}`).update({ status: 'idle', launchTime: null });
     } catch (e) {}
 }
 async function resetRocket(id) { playClickSound(); await stopRocket(id); }
-
 async function launchAll() {
     const gid = `group_${Date.now()}`;
     for (let i = 0; i < rocketCount; i++) await startCountdown(i, gid);
@@ -345,17 +562,14 @@ function listenToRockets() {
         });
     });
 }
-
 function updateRocketUI(id, status) {
     const tile = document.getElementById(`rocket-tile-${id}`);
     const statusEl = document.getElementById(`tile-status-${id}`);
     const launchBtn = document.getElementById(`launch-btn-${id}`);
     const resetBtn = document.getElementById(`reset-btn-${id}`);
     if (!tile || !statusEl || !launchBtn || !resetBtn) return;
-
     tile.className = `rocket-tile ${status}`;
     statusEl.className = `tile-status ${status}`;
-
     if (status === 'idle') {
         statusEl.textContent = t('standby');
         launchBtn.disabled = false; resetBtn.disabled = true;
@@ -369,6 +583,34 @@ function updateRocketUI(id, status) {
         statusEl.textContent = t('complete');
         launchBtn.disabled = false; resetBtn.disabled = false;
     }
+}
+
+// ==== DİL UYGULA & DİNLE ====
+function applyLanguage() {
+    document.getElementById('header-title').textContent = t('title');
+    document.getElementById('live-text').textContent = t('live');
+    document.getElementById('launch-all').textContent = t('launchAll');
+    document.getElementById('stop-all').textContent = t('stopAll');
+    document.getElementById('reset-all').textContent = t('resetAll');
+    document.getElementById('login-title').textContent = t('loginTitle');
+    document.getElementById('login-sub').textContent = t('loginSub');
+    document.getElementById('password-input').placeholder = t('loginPass');
+    document.getElementById('login-btn').textContent = t('loginBtn');
+    document.getElementById('lang-tr').classList.toggle('active', currentLang === 'tr');
+    document.getElementById('lang-en').classList.toggle('active', currentLang === 'en');
+    updateVoiceBtn();
+    if (recognition) {
+        try { recognition.lang = LANG[currentLang].speechLang; } catch (e) {}
+    }
+    if (initialized) createRocketTiles();
+}
+function listenToLanguage() {
+    db.collection('config').doc('language').onSnapshot(doc => {
+        if (doc.exists && doc.data().lang && doc.data().lang !== currentLang) {
+            currentLang = doc.data().lang;
+            applyLanguage();
+        }
+    });
 }
 
 // ==== TEMİZLİK ====
@@ -412,7 +654,6 @@ function init() {
 }
 
 if (checkAuth()) {
-    // Önce dili oku, sonra init yap
     db.collection('config').doc('language').get().then(d => {
         if (d.exists && d.data().lang) currentLang = d.data().lang;
     }).catch(() => {}).finally(() => init());

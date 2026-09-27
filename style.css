@@ -440,46 +440,31 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     100% { transform: scale(1); opacity: 1; }
 }
 
-/* ==== Başarı Ekranı (iniş sırasında sola kayar) ==== */
+/* ==== Başarı Mesajı (ortada, sabit) ==== */
 #success-overlay {
     position: absolute; top: 50%; left: 50%;
     transform: translate(-50%, -50%);
     background: linear-gradient(135deg, rgba(0, 200, 100, 0.96), rgba(0, 150, 80, 0.96));
-    padding: 26px 40px; border-radius: 20px;
+    padding: 30px 50px; border-radius: 20px;
     text-align: center; color: white;
     display: none;
     box-shadow: 0 0 60px rgba(0, 200, 100, 0.8), 0 0 120px rgba(0, 200, 100, 0.4);
     border: 2px solid rgba(255, 255, 255, 0.3);
     z-index: 20;
-    max-width: 90vw; max-height: 90vh;
-    overflow-y: auto;
-    min-width: 380px;
-    transition: left 1s ease, transform 1s ease, min-width 1s ease, max-width 1s ease, padding 1s ease;
+    min-width: 340px;
+    transition: opacity 1s ease;
 }
 #success-overlay.active { display: block; animation: successAppear 0.8s ease-out; }
-
-/* YENİ: İniş modu — sola kayar, küçülür, roket ortada görünür */
-#success-overlay.descent-mode {
-    left: 20px;
-    transform: translate(0, -50%);
-    min-width: 300px;
-    max-width: 380px;
-    padding: 18px 22px;
-}
-#success-overlay.descent-mode .success-icon { font-size: 2.2rem; }
-#success-overlay.descent-mode .success-text { font-size: 1.15rem; letter-spacing: 1px; }
-#success-overlay.descent-mode .success-subtext { font-size: 0.78rem; margin-bottom: 8px; }
-#success-overlay.descent-mode .stats-block { margin-top: 10px; padding-top: 10px; }
-#success-overlay.descent-mode .stat-value { font-size: 0.9rem; }
-#success-overlay.descent-mode .stat-label { font-size: 0.6rem; }
+/* İniş sırasında başarı mesajı saydamlaşır */
+#success-overlay.fade-out { opacity: 0.25; }
 
 .success-icon {
     font-size: 3.5rem; margin-bottom: 4px;
     display: inline-block;
     animation: rocketShake 0.5s ease-in-out infinite alternate;
 }
-.success-text { font-size: 1.6rem; font-weight: bold; letter-spacing: 2px; margin-bottom: 4px; }
-.success-subtext { font-size: 0.95rem; opacity: 0.9; color: #ccffcc; margin-bottom: 14px; }
+.success-text { font-size: 1.8rem; font-weight: bold; letter-spacing: 2px; margin-bottom: 6px; }
+.success-subtext { font-size: 1rem; opacity: 0.9; color: #ccffcc; }
 @keyframes successAppear {
     0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
     60% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
@@ -490,62 +475,82 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     100% { transform: translateX(3px) rotate(3deg); }
 }
 
-.stats-block {
-    margin-top: 14px; padding-top: 14px;
-    border-top: 1px solid rgba(255, 255, 255, 0.25);
-    text-align: left;
+/* ==== İstatistik Paneli (SOL tarafta) ==== */
+#stats-panel {
+    position: absolute; top: 50%; left: 20px;
+    transform: translateY(-50%);
+    background: rgba(0, 30, 15, 0.92);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    padding: 18px 20px;
+    border-radius: 14px;
+    border-left: 5px solid #00cc66;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 200, 100, 0.15);
+    z-index: 21;
+    color: white;
+    min-width: 320px;
+    max-width: 400px;
+    max-height: 85vh;
+    overflow-y: auto;
+    animation: statsAppear 0.6s ease-out;
+}
+@keyframes statsAppear {
+    0% { opacity: 0; transform: translate(-30px, -50%); }
+    100% { opacity: 1; transform: translate(0, -50%); }
 }
 .stats-title {
-    font-size: 0.8rem; font-weight: bold;
-    letter-spacing: 2px; opacity: 0.9;
-    margin-bottom: 10px; text-align: center;
-    color: #ccffcc;
+    font-size: 0.85rem; font-weight: bold;
+    letter-spacing: 2px;
+    margin-bottom: 12px; text-align: center;
+    color: #aaffcc;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0, 200, 100, 0.3);
 }
 .stats-grid {
     display: grid; grid-template-columns: 1fr 1fr;
-    gap: 8px 16px;
+    gap: 8px 12px;
 }
 .stat-item {
     display: flex; flex-direction: column;
-    background: rgba(0, 0, 0, 0.2);
-    padding: 8px 12px; border-radius: 8px;
-    border-left: 3px solid rgba(255, 255, 255, 0.4);
+    background: rgba(0, 0, 0, 0.35);
+    padding: 9px 12px; border-radius: 8px;
+    border-left: 3px solid #00cc66;
 }
 .stat-label {
-    font-size: 0.65rem; letter-spacing: 1.5px;
+    font-size: 0.6rem; letter-spacing: 1.5px;
     opacity: 0.75; margin-bottom: 3px;
     font-family: 'Courier New', monospace;
+    color: #88ffbb;
 }
 .stat-value {
-    font-size: 1.05rem; font-weight: bold;
+    font-size: 1rem; font-weight: bold;
     font-family: 'Courier New', monospace;
 }
 .comparison-block {
-    margin-top: 14px; padding-top: 14px;
-    border-top: 1px solid rgba(255, 255, 255, 0.25);
-    text-align: left;
+    margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid rgba(0, 200, 100, 0.25);
 }
 .comparison-title {
-    font-size: 0.85rem; font-weight: bold;
+    font-size: 0.8rem; font-weight: bold;
     letter-spacing: 2px; margin-bottom: 10px;
     text-align: center; color: #fff8cc;
 }
 .comparison-list {
     display: flex; flex-direction: column; gap: 5px;
-    max-height: 180px; overflow-y: auto;
+    max-height: 200px; overflow-y: auto;
 }
 .comparison-row {
     display: grid;
     grid-template-columns: 28px 1fr auto;
     gap: 10px; align-items: center;
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.3);
     padding: 7px 12px; border-radius: 8px;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     border-left: 3px solid transparent;
     transition: background 0.2s;
 }
 .comparison-row.is-me {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 204, 0, 0.2);
     border-left-color: #ffcc00;
     font-weight: bold;
 }
@@ -594,7 +599,10 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     .live-badge, .header-time { font-size: 0.65rem; }
     #info-panel { min-width: 240px; padding: 14px 16px; }
     .info-value { font-size: 0.95rem; }
-    #success-overlay { padding: 20px 24px; min-width: 90vw; }
-    #success-overlay.descent-mode { left: 10px; min-width: 60vw; max-width: 80vw; }
+    #success-overlay { padding: 20px 24px; min-width: 80vw; }
+    #stats-panel {
+        min-width: 70vw; max-width: 90vw;
+        left: 10px; padding: 14px 16px;
+    }
     .stats-grid { grid-template-columns: 1fr; }
 }

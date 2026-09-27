@@ -61,7 +61,12 @@ const LANG = {
     }
 };
 
-let currentLang = 'tr';
+// ==== YEREL DİL OVERRIDE ====
+// Roket ekranındaki TR/EN tıklanınca localStorage'a kaydedilir,
+// sadece bu ekranı etkiler. Master değişirse ve override yoksa uyar.
+let localOverride = null;
+try { localOverride = localStorage.getItem('rocket_lang_' + rocketId); } catch (e) {}
+let currentLang = localOverride || 'tr';
 function t(k) { return LANG[currentLang][k] || k; }
 
 function formatTime(sec) {
@@ -88,6 +93,7 @@ const resetBtn = document.getElementById('reset-btn');
 const countdownOverlay = document.getElementById('countdown-overlay');
 const countdownNumber = document.getElementById('countdown-number');
 const successOverlay = document.getElementById('success-overlay');
+const statsPanel = document.getElementById('stats-panel');
 const atmosphereEl = document.getElementById('atmosphere');
 
 const infoSpeed = document.getElementById('info-speed');
@@ -98,7 +104,6 @@ const infoAltitude = document.getElementById('info-altitude');
 const infoTime = document.getElementById('info-time');
 const rocketNameEl = document.getElementById('rocket-name');
 
-const statsBlock = document.getElementById('stats-block');
 const statValTime = document.getElementById('stat-val-time');
 const statValFuel = document.getElementById('stat-val-fuel');
 const statValSpeed = document.getElementById('stat-val-speed');
@@ -180,17 +185,36 @@ function speak(text) {
     } catch (e) {}
 }
 
-// ==== DİL (artık global - Firestore'a yazılır) ====
+// ==== DİL ====
 function updateLangButtons() {
     rLangTr.classList.toggle('active', currentLang === 'tr');
     rLangEn.classList.toggle('active', currentLang === 'en');
 }
-// Roket ekranındaki TR/EN butonları Firestore'a yazar → tüm ekranlar uyar
-function setGlobalLanguage(lang) {
-    db.collection('config').doc('language').set({ lang }, { merge: true }).catch(() => {});
+// Roket ekranındaki TR/EN → SADECE bu ekranı değiştirir
+function setLocalLanguage(lang) {
+    currentLang = lang;
+    localOverride = lang;
+    try { localStorage.setItem('rocket_lang_' + rocketId, lang); } catch (e) {}
+    updateLangButtons();
+    applyLanguage();
 }
-rLangTr.onclick = () => setGlobalLanguage('tr');
-rLangEn.onclick = () => setGlobalLanguage('en');
+rLangTr.onclick = () => setLocalLanguage('tr');
+rLangEn.onclick = () => setLocalLanguage('en');
+
+// Master ekranından gelen dil değişikliklerini dinle
+async function listenToLanguage() {
+    db.collection('config').doc('language').onSnapshot(doc => {
+        if (doc.exists && doc.data().lang) {
+            const masterLang = doc.data().lang;
+            // Yerel override varsa master'ı YOK SAY
+            if (!localOverride && masterLang !== currentLang) {
+                currentLang = masterLang;
+                updateLangButtons();
+                applyLanguage();
+            }
+        }
+    });
+}
 
 // ==== ÇEVİRİ UYGULA ====
 function applyLanguage() {
@@ -224,20 +248,6 @@ function applyLanguage() {
     }
     drawChart();
     updateInfoPanel();
-}
-
-// Her cihaz bu dinleyiciyi dinler. Master değişince hepsi uyar.
-async function listenToLanguage() {
-    db.collection('config').doc('language').onSnapshot(doc => {
-        if (doc.exists && doc.data().lang) {
-            const masterLang = doc.data().lang;
-            if (masterLang !== currentLang) {
-                currentLang = masterLang;
-                updateLangButtons();
-                applyLanguage();
-            }
-        }
-    });
 }
 
 // ==== CANVAS ====
@@ -313,8 +323,8 @@ class Rocket {
         statusMessage.style.color = '#aaa';
         launchBtn.disabled = false; resetBtn.disabled = true;
         successOverlay.classList.remove('active');
-        successOverlay.classList.remove('descent-mode');
-        statsBlock.style.display = 'none';
+        successOverlay.classList.remove('fade-out');
+        statsPanel.style.display = 'none';
         comparisonBlock.style.display = 'none';
         if (comparisonUnsub) { comparisonUnsub(); comparisonUnsub = null; }
         atmosphereEl.style.opacity = '1';
@@ -331,8 +341,8 @@ class Rocket {
         statusMessage.style.color = '#ffaa00';
         launchBtn.disabled = true; resetBtn.disabled = false;
         successOverlay.classList.remove('active');
-        successOverlay.classList.remove('descent-mode');
-        statsBlock.style.display = 'none';
+        successOverlay.classList.remove('fade-out');
+        statsPanel.style.display = 'none';
         comparisonBlock.style.display = 'none';
         if (animationId) cancelAnimationFrame(animationId);
         lastTime = 0;
@@ -341,15 +351,16 @@ class Rocket {
     }
     startDescent() {
         this.status = 'descending';
-        // Roket izi temizlenir (iniş sırasında duman kalmaz)
+        // Roket izi tamamen silinir - iniş sırasında duman kalmaz
         this.trail = [];
         this.descentStartY = this.y;
         this.descentEndY = this.groundY - this.height / 2;
         this.descentElapsed = 0;
         statusMessage.textContent = t('descending');
         statusMessage.style.color = '#88aaff';
-        // Başarı paneli sola kayar (CSS transition ile yumuşak geçiş)
-        successOverlay.classList.add('descent-mode');
+        // Başarı mesajı saydamlaşır
+        successOverlay.classList.add('fade-out');
+        // Stats paneli görünür kalır (sol tarafta)
         lastTime = 0;
         if (animationId) cancelAnimationFrame(animationId);
         animationId = requestAnimationFrame(animate);
@@ -421,8 +432,8 @@ class Rocket {
                 this.status = 'landed';
                 statusMessage.textContent = t('landed');
                 statusMessage.style.color = '#00cc66';
-                // Başarı paneli tekrar ortaya ve normal opaklığa döner
-                successOverlay.classList.remove('descent-mode');
+                // Başarı mesajı tekrar tam opaklığa döner
+                successOverlay.classList.remove('fade-out');
             }
         }
     }
@@ -434,7 +445,6 @@ class Rocket {
         return `rgb(${Math.floor(r*factor)}, ${Math.floor(g*factor)}, ${Math.floor(b*factor)})`;
     }
     draw() {
-        // Trail çizimi (kalkış sırasında dolu, iniş sırasında boş)
         this.trail.forEach(tt => {
             const alpha = tt.life * 0.5;
             const grd = ctx.createRadialGradient(tt.x, tt.y, 0, tt.x, tt.y, tt.size);
@@ -486,7 +496,6 @@ class Rocket {
         ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 3; ctx.stroke();
         ctx.fillStyle = 'rgba(255,255,255,0.5)';
         ctx.beginPath(); ctx.arc(-w*0.05, -h*0.15, w*0.05, 0, Math.PI*2); ctx.fill();
-        // Alev sadece kalkış sırasında
         if (this.status === 'launching' && this.fuel > 0) {
             const fl = 60 + Math.random() * 40;
             const fw = w * 0.55;
@@ -523,8 +532,9 @@ async function showStatsAndSave() {
     statValSpeed.textContent = `${Math.round(maxSpeed).toLocaleString('tr-TR')} m/s`;
     statValAlt.textContent = formatAltitude(maxAlt);
 
-    statsBlock.style.display = 'block';
+    // Başarı mesajı ortada, istatistikler sol tarafta
     successOverlay.classList.add('active');
+    statsPanel.style.display = 'block';
 
     try {
         await db.collection('rockets').doc(`rocket${rocketId}`).update({
@@ -851,9 +861,9 @@ function listenToRocket() {
                     statValFuel.textContent = `%${data.stats.fuelUsed.toFixed(1)}`;
                     statValSpeed.textContent = `${Math.round(data.stats.maxSpeed).toLocaleString('tr-TR')} m/s`;
                     statValAlt.textContent = formatAltitude(data.stats.maxAltitude);
-                    statsBlock.style.display = 'block';
                 }
                 successOverlay.classList.add('active');
+                statsPanel.style.display = 'block';
                 launchBtn.disabled = false; resetBtn.disabled = false;
                 atmosphereEl.style.opacity = '0';
                 if (currentGroupId && currentGroupId.startsWith('group_')) startComparisonListener();
@@ -885,9 +895,9 @@ function listenToRocket() {
                     statValFuel.textContent = `%${data.stats.fuelUsed.toFixed(1)}`;
                     statValSpeed.textContent = `${Math.round(data.stats.maxSpeed).toLocaleString('tr-TR')} m/s`;
                     statValAlt.textContent = formatAltitude(data.stats.maxAltitude);
-                    statsBlock.style.display = 'block';
                 }
                 successOverlay.classList.add('active');
+                statsPanel.style.display = 'block';
                 atmosphereEl.style.opacity = '0';
             }
         } else if (data.status === 'idle') {
@@ -900,11 +910,13 @@ function listenToRocket() {
 
 // ==== BAŞLATMA ====
 async function init() {
-    // Firestore'daki dile göre başla
-    try {
-        const d = await db.collection('config').doc('language').get();
-        if (d.exists && d.data().lang) currentLang = d.data().lang;
-    } catch (e) {}
+    // Yerel override yoksa master dilini kullan
+    if (!localOverride) {
+        try {
+            const d = await db.collection('config').doc('language').get();
+            if (d.exists && d.data().lang) currentLang = d.data().lang;
+        } catch (e) {}
+    }
     updateLangButtons();
 
     resizeCanvas(); initStars();

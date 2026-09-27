@@ -15,30 +15,32 @@
         <div id="countdown-number">3</div>
     </div>
 
+    <!-- Başarı mesajı (ortada, sabit) -->
     <div id="success-overlay">
         <div class="success-icon">🚀</div>
         <div class="success-text" id="success-title">KALKIŞ BAŞARILI</div>
         <div class="success-subtext" id="success-sub">Yörüngeye ulaşıldı!</div>
+    </div>
 
-        <div class="stats-block" id="stats-block" style="display:none;">
-            <div class="stats-title" id="stats-title">GÖREV İSTATİSTİKLERİ</div>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <span class="stat-label" id="stat-lbl-time">UÇUŞ SÜRESİ</span>
-                    <span class="stat-value" id="stat-val-time">-</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label" id="stat-lbl-fuel">YAKIT TÜKETİMİ</span>
-                    <span class="stat-value" id="stat-val-fuel">-</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label" id="stat-lbl-speed">MAKS HIZ</span>
-                    <span class="stat-value" id="stat-val-speed">-</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label" id="stat-lbl-alt">MAKS YÜKSEKLİK</span>
-                    <span class="stat-value" id="stat-val-alt">-</span>
-                </div>
+    <!-- Yeni: İstatistik paneli (sol tarafta) -->
+    <div id="stats-panel" style="display:none;">
+        <div class="stats-title" id="stats-title">GÖREV İSTATİSTİKLERİ</div>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <span class="stat-label" id="stat-lbl-time">UÇUŞ SÜRESİ</span>
+                <span class="stat-value" id="stat-val-time">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label" id="stat-lbl-fuel">YAKIT TÜKETİMİ</span>
+                <span class="stat-value" id="stat-val-fuel">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label" id="stat-lbl-speed">MAKS HIZ</span>
+                <span class="stat-value" id="stat-val-speed">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label" id="stat-lbl-alt">MAKS YÜKSEKLİK</span>
+                <span class="stat-value" id="stat-val-alt">-</span>
             </div>
         </div>
 
@@ -48,7 +50,7 @@
         </div>
     </div>
 
-    <!-- YENİ: Roket ekranı için yerel dil değiştirici -->
+    <!-- Roket ekranı yerel dil değiştirici -->
     <div class="rocket-lang-switch">
         <button id="r-lang-tr" class="r-lang-btn active">TR</button>
         <button id="r-lang-en" class="r-lang-btn">EN</button>

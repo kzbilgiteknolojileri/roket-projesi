@@ -148,7 +148,6 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     box-shadow: 0 4px 20px rgba(100, 100, 100, 0.3);
 }
 
-/* Roket Kutuları - 3x3 Grid */
 #rocket-controls {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -191,7 +190,6 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     0%, 100% { opacity: 1; }
     50% { opacity: 0.92; }
 }
-
 .tile-header {
     display: flex; align-items: center; justify-content: space-between;
     gap: 8px; padding-bottom: 6px;
@@ -206,8 +204,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
 .rocket-tile.launching .tile-live,
 .rocket-tile.launched .tile-live { color: #ff4444; }
 .tile-live-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: #444;
+    width: 6px; height: 6px; border-radius: 50%; background: #444;
 }
 .rocket-tile.countdown .tile-live-dot,
 .rocket-tile.launching .tile-live-dot,
@@ -216,10 +213,8 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     animation: livePulse 1.2s infinite;
 }
 .tile-name {
-    font-size: 0.75rem; font-weight: bold;
-    color: #fff; letter-spacing: 0.5px;
-    text-align: right;
-    white-space: nowrap; overflow: hidden;
+    font-size: 0.75rem; font-weight: bold; color: #fff;
+    text-align: right; white-space: nowrap; overflow: hidden;
     text-overflow: ellipsis; flex: 1;
 }
 .tile-body {
@@ -247,8 +242,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     font-size: 0.7rem; font-weight: bold;
     letter-spacing: 1.5px;
     padding: 4px 10px; border-radius: 12px;
-    background: rgba(255, 255, 255, 0.06);
-    color: #aaa;
+    background: rgba(255, 255, 255, 0.06); color: #aaa;
 }
 .tile-status.idle { color: #888; }
 .tile-status.countdown { color: #ffcc00; background: rgba(255, 204, 0, 0.15); }
@@ -267,8 +261,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     border: 1px solid rgba(255, 255, 255, 0.3);
 }
 .tile-actions {
-    display: grid; grid-template-columns: 2fr 1fr;
-    gap: 6px;
+    display: grid; grid-template-columns: 2fr 1fr; gap: 6px;
 }
 .tile-btn {
     padding: 10px 6px; border: none; border-radius: 8px;
@@ -320,6 +313,33 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     opacity: 1;
 }
 
+/* ==== YENİ: Roket ekranı dil değiştirici ==== */
+.rocket-lang-switch {
+    position: absolute; top: 20px; right: 20px;
+    display: flex; gap: 2px;
+    background: rgba(0, 0, 0, 0.65);
+    border-radius: 8px; padding: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 12;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.r-lang-btn {
+    padding: 6px 14px;
+    background: transparent; border: none;
+    color: #888; font-weight: bold;
+    font-size: 0.85rem; letter-spacing: 1px;
+    cursor: pointer; border-radius: 6px;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+.r-lang-btn:hover { color: #fff; }
+.r-lang-btn.active {
+    background: linear-gradient(135deg, #ffcc00, #ff8800);
+    color: #000;
+    box-shadow: 0 2px 10px rgba(255, 204, 0, 0.5);
+}
+
 #info-panel {
     position: absolute; top: 20px; left: 20px;
     background: rgba(0, 0, 0, 0.7);
@@ -344,7 +364,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
 .info-value { font-size: 1.1rem; font-weight: bold; color: #ffcc00; transition: color 0.3s; }
 
 #chart-panel {
-    position: absolute; top: 20px; right: 20px;
+    position: absolute; top: 70px; right: 20px; /* Dil switch için aşağı kaydı */
     background: rgba(0, 0, 0, 0.65);
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     border-radius: 12px;
@@ -420,7 +440,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     100% { transform: scale(1); opacity: 1; }
 }
 
-/* ==== Başarı Ekranı + İstatistikler ==== */
+/* ==== Başarı Ekranı ==== */
 #success-overlay {
     position: absolute; top: 50%; left: 50%;
     transform: translate(-50%, -50%);
@@ -434,8 +454,14 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     max-width: 90vw; max-height: 90vh;
     overflow-y: auto;
     min-width: 380px;
+    transition: opacity 1.2s;
 }
 #success-overlay.active { display: block; animation: successAppear 0.8s ease-out; }
+/* YENİ: İniş sırasında saydamlaşsın */
+#success-overlay.fade-out { opacity: 0.35; }
+#success-overlay.fade-out .stats-block,
+#success-overlay.fade-out .comparison-block { pointer-events: auto; }
+
 .success-icon {
     font-size: 3.5rem; margin-bottom: 4px;
     display: inline-block;
@@ -465,8 +491,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     color: #ccffcc;
 }
 .stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: grid; grid-template-columns: 1fr 1fr;
     gap: 8px 16px;
 }
 .stat-item {
@@ -484,7 +509,6 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     font-size: 1.05rem; font-weight: bold;
     font-family: 'Courier New', monospace;
 }
-
 .comparison-block {
     margin-top: 14px; padding-top: 14px;
     border-top: 1px solid rgba(255, 255, 255, 0.25);
@@ -514,9 +538,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     border-left-color: #ffcc00;
     font-weight: bold;
 }
-.comparison-row.pending {
-    opacity: 0.5;
-}
+.comparison-row.pending { opacity: 0.5; }
 .comparison-rank {
     font-weight: bold; font-size: 1rem;
     text-align: center; color: #fff8cc;
@@ -526,8 +548,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
 .comparison-rank.silver { color: #c0c0c0; }
 .comparison-rank.bronze { color: #cd7f32; }
 .comparison-name {
-    white-space: nowrap; overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .comparison-time {
     font-family: 'Courier New', monospace;

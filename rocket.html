@@ -17,44 +17,71 @@
 
     <div id="success-overlay">
         <div class="success-icon">🚀</div>
-        <div class="success-text">KALKIŞ BAŞARILI</div>
-        <div class="success-subtext">Yörüngeye ulaşıldı!</div>
+        <div class="success-text" id="success-title">KALKIŞ BAŞARILI</div>
+        <div class="success-subtext" id="success-sub">Yörüngeye ulaşıldı!</div>
+
+        <div class="stats-block" id="stats-block" style="display:none;">
+            <div class="stats-title" id="stats-title">GÖREV İSTATİSTİKLERİ</div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label" id="stat-lbl-time">UÇUŞ SÜRESİ</span>
+                    <span class="stat-value" id="stat-val-time">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label" id="stat-lbl-fuel">YAKIT TÜKETİMİ</span>
+                    <span class="stat-value" id="stat-val-fuel">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label" id="stat-lbl-speed">MAKS HIZ</span>
+                    <span class="stat-value" id="stat-val-speed">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label" id="stat-lbl-alt">MAKS YÜKSEKLİK</span>
+                    <span class="stat-value" id="stat-val-alt">-</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="comparison-block" id="comparison-block" style="display:none;">
+            <div class="comparison-title" id="comparison-title">🏆 GÖREV KARŞILAŞTIRMASI</div>
+            <div class="comparison-list" id="comparison-list"></div>
+        </div>
     </div>
 
     <div id="info-panel">
         <div class="info-header" id="rocket-name">SATURN V</div>
         <div class="info-item">
-            <span class="info-label">HIZ</span>
+            <span class="info-label" id="lbl-speed">HIZ</span>
             <span class="info-value" id="info-speed">0 m/s</span>
         </div>
         <div class="info-item">
-            <span class="info-label">İVME</span>
+            <span class="info-label" id="lbl-accel">İVME</span>
             <span class="info-value" id="info-accel">0 m/s²</span>
         </div>
         <div class="info-item">
-            <span class="info-label">YAKIT</span>
+            <span class="info-label" id="lbl-fuel">YAKIT</span>
             <span class="info-value" id="info-fuel">100%</span>
         </div>
         <div class="info-item">
-            <span class="info-label">KÜTLE</span>
+            <span class="info-label" id="lbl-mass">KÜTLE</span>
             <span class="info-value" id="info-mass">2.970 t</span>
         </div>
         <div class="info-item">
-            <span class="info-label">YÜKSEKLİK</span>
+            <span class="info-label" id="lbl-alt">YÜKSEKLİK</span>
             <span class="info-value" id="info-altitude">0 m</span>
         </div>
         <div class="info-item">
-            <span class="info-label">SÜRE</span>
+            <span class="info-label" id="lbl-time">SÜRE</span>
             <span class="info-value" id="info-time">0.0 s</span>
         </div>
     </div>
 
     <div id="chart-panel">
-        <div class="chart-title">TELEMETRİ</div>
+        <div class="chart-title" id="chart-title">TELEMETRİ</div>
         <canvas id="chart-canvas" width="260" height="110"></canvas>
         <div class="chart-legend">
-            <span><span class="legend-dot speed"></span>Hız</span>
-            <span><span class="legend-dot alt"></span>Yükseklik</span>
+            <span><span class="legend-dot speed"></span><span id="legend-speed">Hız</span></span>
+            <span><span class="legend-dot alt"></span><span id="legend-alt">Yükseklik</span></span>
         </div>
     </div>
 

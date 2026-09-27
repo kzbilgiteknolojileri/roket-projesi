@@ -10,8 +10,8 @@
     <div id="login-screen" class="login-screen">
         <div class="login-box">
             <div class="login-icon">🔐</div>
-            <h1>Kontrol Merkezi</h1>
-            <p>Yetkili giriş gereklidir</p>
+            <h1 id="login-title">Kontrol Merkezi</h1>
+            <p id="login-sub">Yetkili giriş gereklidir</p>
             <input type="password" id="password-input" placeholder="Şifre" autocomplete="off">
             <button id="login-btn">GİRİŞ YAP</button>
             <div id="login-error" class="login-error"></div>
@@ -21,10 +21,16 @@
     <div id="control-panel" style="display: none;">
         <div class="panel-header">
             <div class="live-badge">
-                <span class="live-dot"></span> CANLI YAYIN
+                <span class="live-dot"></span><span id="live-text">CANLI YAYIN</span>
             </div>
-            <h1>🚀 ROKET KONTROL MERKEZİ</h1>
-            <div class="header-time" id="header-time">--:--</div>
+            <h1 id="header-title">🚀 ROKET KONTROL MERKEZİ</h1>
+            <div class="header-right">
+                <div class="lang-switch">
+                    <button class="lang-btn active" data-lang="tr" id="lang-tr">TR</button>
+                    <button class="lang-btn" data-lang="en" id="lang-en">EN</button>
+                </div>
+                <div class="header-time" id="header-time">--:--</div>
+            </div>
         </div>
 
         <div class="master-buttons">

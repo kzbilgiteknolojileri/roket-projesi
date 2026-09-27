@@ -170,7 +170,6 @@ function createRocketTiles() {
 
         controlsContainer.appendChild(tile);
 
-        // Event listener'lar
         document.getElementById(`launch-btn-${i}`).onclick = () => startCountdown(i);
         document.getElementById(`reset-btn-${i}`).onclick = () => resetRocket(i);
     }
@@ -334,7 +333,6 @@ async function cleanupStuckRockets() {
                 if (data.status === 'countdown' || data.status === 'launching') {
                     await docRef.update({ status: 'idle', launchTime: null });
                 }
-                // Eski ismi güncelle
                 if (data.name !== ROCKETS[i].name) {
                     await docRef.update({ name: ROCKETS[i].name, planet: ROCKETS[i].planet });
                 }

@@ -132,11 +132,28 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     box-shadow: 0 4px 20px rgba(100, 100, 100, 0.3);
 }
 
-/* Roket Kutuları - Yatay Grid */
+/* Roket Kutuları - 3x3 Grid */
 #rocket-controls {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, auto);
     gap: 12px;
+}
+
+/* Orta boy ekranlar (Tablet dikey) - 2 sütun */
+@media (max-width: 900px) and (min-width: 601px) {
+    #rocket-controls {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: auto;
+    }
+}
+
+/* Küçük ekranlar (Telefon) - 1 sütun */
+@media (max-width: 600px) {
+    #rocket-controls {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+    }
 }
 
 /* Canlı Yayın Tarzı Kutu */
@@ -319,7 +336,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
     opacity: 1;
 }
 
-/* ==== Bilgi Paneli - BÜYÜTÜLDÜ ==== */
+/* ==== Bilgi Paneli - BÜYÜK ==== */
 #info-panel {
     position: absolute; top: 20px; left: 20px;
     background: rgba(0, 0, 0, 0.7);
@@ -459,6 +476,43 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a1a; color: #
 @keyframes rocketShake {
     0% { transform: translateX(-3px) rotate(-3deg); }
     100% { transform: translateX(3px) rotate(3deg); }
+}
+
+/* ==== Tablet Optimizasyonu ==== */
+@media (min-width: 901px) and (max-width: 1400px) {
+    #control-panel {
+        max-width: 100%;
+        padding: 14px;
+    }
+    .panel-header h1 { font-size: 1.15rem; }
+    .master-btn {
+        padding: 16px 12px;
+        font-size: 1rem;
+    }
+    .master-buttons {
+        grid-template-columns: 2fr 1.2fr 1.2fr;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+    .tile-body {
+        min-height: 70px;
+        padding: 6px 0;
+    }
+    .tile-rocket-icon { font-size: 1.8rem; }
+    .tile-name { font-size: 0.7rem; }
+    .tile-status { font-size: 0.65rem; padding: 3px 8px; }
+    .tile-planet-row { font-size: 0.65rem; padding: 4px 0; }
+    .tile-btn { padding: 9px 5px; font-size: 0.75rem; }
+    .tile-header { padding-bottom: 5px; }
+    .tile-live { font-size: 0.55rem; }
+}
+
+/* Yatay tablet (landscape) */
+@media (min-width: 901px) and (max-height: 800px) and (orientation: landscape) {
+    .panel-header { margin-bottom: 12px; padding-bottom: 10px; }
+    .master-buttons { margin-bottom: 12px; }
+    .tile-body { min-height: 60px; }
+    .tile-rocket-icon { font-size: 1.6rem; }
 }
 
 /* Mobil */

@@ -143,7 +143,6 @@ window.addEventListener('resize', () => { resizeCanvas(); initStars(); });
 // ==== KALKIS SARSINTISI ====
 function triggerShake() {
     document.body.classList.remove('shake');
-    // Force reflow
     void document.body.offsetWidth;
     document.body.classList.add('shake');
     setTimeout(() => document.body.classList.remove('shake'), 1500);
@@ -220,8 +219,6 @@ class Rocket {
         if (animationId) cancelAnimationFrame(animationId);
         lastTime = 0;
         animationId = requestAnimationFrame(animate);
-
-        // Kalkış sarsıntısı - güçlendirilmiş
         triggerShake();
     }
 

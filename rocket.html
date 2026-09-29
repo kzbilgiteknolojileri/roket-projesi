@@ -25,7 +25,7 @@
         <div class="stats-title" id="stats-title">GÖREV İSTATİSTİKLERİ</div>
         <div class="stats-grid">
             <div class="stat-item">
-                <span class="stat-label" id="stat-lbl-time">UÇUŞ SÜRESİ</span>
+                <span class="stat-label" id="stat-lbl-time">YÖRÜNGEYE ÇIKIŞ</span>
                 <span class="stat-value" id="stat-val-time">-</span>
             </div>
             <div class="stat-item">
@@ -81,13 +81,11 @@
         </div>
     </div>
 
-    <div id="chart-panel">
-        <div class="chart-title" id="chart-title">TELEMETRİ</div>
-        <canvas id="chart-canvas" width="260" height="110"></canvas>
-        <div class="chart-legend">
-            <span><span class="legend-dot speed"></span><span id="legend-speed">Hız</span></span>
-            <span><span class="legend-dot alt"></span><span id="legend-alt">Yükseklik</span></span>
-        </div>
+    <!-- YENİ: Gezegen görüntüsü (telemetri yerine) -->
+    <div id="planet-view">
+        <div class="planet-view-title" id="planet-view-title">MERKÜR</div>
+        <canvas id="planet-canvas" width="260" height="260"></canvas>
+        <div class="planet-info-row" id="planet-info-row">Yerçekimi: 3.7 m/s²</div>
     </div>
 
     <div id="local-controls">

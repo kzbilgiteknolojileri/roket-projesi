@@ -49,8 +49,9 @@ const LANG = {
         voiceResetAll: 'Tüm roketler sıfırlandı!',
         voiceLaunchOne: 'ateşlendi', voiceResetOne: 'sıfırlandı',
         voiceDenied: 'Mikrofon izni verilmedi',
-        voiceNotSupported: 'Tarayıcı desteklemiyor',
-        voiceNoSpeech: 'Ses algılanamadı'
+        voiceNotSupported: 'Tarayıcı desteklemiyor (Chrome/Edge kullanın)',
+        voiceHint: 'Örn: "Tümünü ateşle" veya "Roket 1 ateşle"',
+        voiceHeardAny: 'Duyulan'
     },
     en: {
         title: '🚀 ROCKET CONTROL CENTER',
@@ -73,8 +74,9 @@ const LANG = {
         voiceResetAll: 'All rockets reset!',
         voiceLaunchOne: 'launched', voiceResetOne: 'reset',
         voiceDenied: 'Microphone permission denied',
-        voiceNotSupported: 'Browser not supported',
-        voiceNoSpeech: 'No speech detected'
+        voiceNotSupported: 'Browser not supported (use Chrome/Edge)',
+        voiceHint: 'Ex: "Launch all" or "Rocket 1 launch"',
+        voiceHeardAny: 'Heard'
     }
 };
 let currentLang = 'tr';
@@ -148,7 +150,6 @@ let voiceActive = false;
 let lastCommandTime = 0;
 let lastCommandKey = '';
 
-// Türkçe sayı haritası
 const TR_NUMS = {
     'bir': 1, '1': 1, 'iki': 2, '2': 2, 'üç': 3, 'uc': 3, '3': 3,
     'dört': 4, 'dort': 4, '4': 4, 'beş': 5, 'bes': 5, '5': 5,
@@ -161,7 +162,6 @@ const EN_NUMS = {
     'seven': 7, '7': 7, 'eight': 8, '8': 8, 'nine': 9, '9': 9
 };
 
-// Roket isim aliases (Master için, roket adıyla komut)
 const ROCKET_ALIASES = {
     0: ['saturn v', 'saturn bes', 'saturn beş', 'saturn 5', 'saturn'],
     1: ['falcon 9', 'falcon nine', 'falcon dokuz', 'falcon'],
@@ -176,7 +176,7 @@ const ROCKET_ALIASES = {
 
 function normalizeText(text) {
     return text.toLowerCase()
-        .replace(/[.,!?;:'"()\[\]{}]/g, '')
+        .replace(/[.,!?;:'"()\[\]{}]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
 }
@@ -186,33 +186,28 @@ function extractNumber(words, nums) {
     }
     return null;
 }
-function matchesAlias(norm, rocketIdx) {
-    const aliases = ROCKET_ALIASES[rocketIdx] || [];
-    return aliases.some(a => norm.includes(a));
+function containsAnyWord(norm, wordList) {
+    const words = norm.split(' ');
+    return wordList.some(w => words.includes(w));
 }
 
-// Master sesli komut çözümleyici
 function parseMasterCommand(transcript) {
     const norm = normalizeText(transcript);
     const words = norm.split(' ');
     const nums = currentLang === 'tr' ? TR_NUMS : EN_NUMS;
 
-    const hasFire = /\b(ateşle|atesle|fırlat|firlat|başlat|baslat|launch|fire|start)\b/.test(norm) ||
-                    norm.includes('ateşle') || norm.includes('atesle') ||
-                    norm.includes('fırlat') || norm.includes('firlat') ||
-                    norm.includes('başlat') || norm.includes('baslat') ||
-                    norm.includes('launch') || norm.includes('fire') || norm.includes('start');
-    const hasStop = norm.includes('durdur') || norm.includes('dur ') || norm.endsWith(' dur') ||
-                    norm.includes('stop') || norm.includes('halt');
-    const hasReset = norm.includes('sıfırla') || norm.includes('sifirla') || norm.includes('reset');
+    const fireWords = ['ateşle', 'atesle', 'ateş', 'ates', 'fırlat', 'firlat', 'başlat', 'baslat', 'launch', 'fire', 'start', 'go', 'başla', 'basla'];
+    const stopWords = ['durdur', 'dur', 'kes', 'stop', 'halt'];
+    const resetWords = ['sıfırla', 'sifirla', 'temizle', 'reset', 'clear'];
+
+    const hasFire = containsAnyWord(norm, fireWords);
+    const hasStop = containsAnyWord(norm, stopWords);
+    const hasReset = containsAnyWord(norm, resetWords);
 
     if (!hasFire && !hasStop && !hasReset) return null;
 
-    // "Tümünü / hepsini / all" tespiti
-    const hasAll = norm.includes('tümünü') || norm.includes('tumunu') ||
-                   norm.includes('hepsini') || norm.includes('hepsi') ||
-                   norm.includes('tüm roket') || norm.includes('tum roket') ||
-                   norm.includes('all') || norm.includes('everything');
+    const allWords = ['tümünü', 'tumunu', 'tümü', 'tumu', 'hepsini', 'hepsi', 'tüm', 'tum', 'all', 'everything'];
+    const hasAll = containsAnyWord(norm, allWords);
 
     if (hasAll) {
         if (hasFire) return { type: 'launch-all' };
@@ -220,8 +215,8 @@ function parseMasterCommand(transcript) {
         if (hasReset) return { type: 'reset-all' };
     }
 
-    // Tek roket: "roket N" veya "roket adı"
-    if (norm.includes('roket') || norm.includes('rocket')) {
+    const hasRocketWord = words.includes('roket') || words.includes('rocket');
+    if (hasRocketWord) {
         const n = extractNumber(words, nums);
         if (n !== null && n >= 1 && n <= 9) {
             if (hasFire) return { type: 'launch-one', id: n - 1 };
@@ -229,9 +224,10 @@ function parseMasterCommand(transcript) {
         }
     }
 
-    // Roket adıyla: "Saturn V ateşle"
     for (let i = 0; i < rocketCount; i++) {
-        if (matchesAlias(norm, i)) {
+        const aliases = ROCKET_ALIASES[i] || [];
+        const match = aliases.some(a => norm.includes(a));
+        if (match) {
             if (hasFire) return { type: 'launch-one', id: i };
             if (hasReset) return { type: 'reset-one', id: i };
         }
@@ -240,7 +236,6 @@ function parseMasterCommand(transcript) {
     return null;
 }
 
-// Duyulan metni ekranda göster
 function showVoiceToast(text, type = 'ok') {
     const el = document.getElementById('voice-toast');
     if (!el) return;
@@ -248,16 +243,13 @@ function showVoiceToast(text, type = 'ok') {
     el.className = 'voice-toast';
     if (type === 'no-match') el.classList.add('not-matched');
     if (type === 'error') el.classList.add('error-toast');
-    // Force reflow
     void el.offsetWidth;
     el.classList.add('show');
     clearTimeout(el._timeout);
-    el._timeout = setTimeout(() => el.classList.remove('show'), 2500);
+    el._timeout = setTimeout(() => el.classList.remove('show'), 3500);
 }
 
-// Komutları tetikle
 async function executeMasterCommand(cmd, transcript) {
-    // Debounce: aynı komut 2 saniye içinde tekrarlanmasın
     const key = JSON.stringify(cmd);
     const now = Date.now();
     if (key === lastCommandKey && (now - lastCommandTime) < 2000) return;
@@ -265,26 +257,21 @@ async function executeMasterCommand(cmd, transcript) {
     lastCommandTime = now;
 
     if (cmd.type === 'launch-all') {
-        showVoiceToast(`🎤 ${t('voiceHeard')}: "${transcript}" → ${t('voiceLaunchAll')}`, 'ok');
-        playSuccessSound();
+        showVoiceToast(`🎤 "${transcript}" → ${t('voiceLaunchAll')}`, 'ok');
         await launchAll();
     } else if (cmd.type === 'stop-all') {
-        showVoiceToast(`🎤 ${t('voiceHeard')}: "${transcript}" → ${t('voiceStopAll')}`, 'ok');
-        playWarningSound();
+        showVoiceToast(`🎤 "${transcript}" → ${t('voiceStopAll')}`, 'ok');
         await stopAll();
     } else if (cmd.type === 'reset-all') {
-        showVoiceToast(`🎤 ${t('voiceHeard')}: "${transcript}" → ${t('voiceResetAll')}`, 'ok');
-        playClickSound();
+        showVoiceToast(`🎤 "${transcript}" → ${t('voiceResetAll')}`, 'ok');
         await resetAll();
     } else if (cmd.type === 'launch-one') {
         const rn = ROCKETS[cmd.id].name;
-        showVoiceToast(`🎤 ${t('voiceHeard')}: "${transcript}" → ${rn} ${t('voiceLaunchOne')}`, 'ok');
-        playClickSound();
+        showVoiceToast(`🎤 "${transcript}" → ${rn} ${t('voiceLaunchOne')}`, 'ok');
         await startCountdown(cmd.id);
     } else if (cmd.type === 'reset-one') {
         const rn = ROCKETS[cmd.id].name;
-        showVoiceToast(`🎤 ${t('voiceHeard')}: "${transcript}" → ${rn} ${t('voiceResetOne')}`, 'ok');
-        playClickSound();
+        showVoiceToast(`🎤 "${transcript}" → ${rn} ${t('voiceResetOne')}`, 'ok');
         await resetRocket(cmd.id);
     }
 }
@@ -295,46 +282,55 @@ function initVoiceRecognition() {
         return null;
     }
     const rec = new SpeechRecognition();
-    rec.continuous = true;
+    rec.continuous = false;
     rec.interimResults = false;
     rec.maxAlternatives = 3;
     rec.lang = LANG[currentLang].speechLang;
 
+    rec.onstart = () => { console.log('[Voice] Başladı, dil:', rec.lang); };
     rec.onresult = (event) => {
+        console.log('[Voice] Sonuç:', event.results);
+        let found = false;
         for (let i = event.resultIndex; i < event.results.length; i++) {
             const res = event.results[i];
-            if (!res.isFinal) continue;
             for (let k = 0; k < res.length; k++) {
                 const transcript = res[k].transcript.trim();
                 if (!transcript) continue;
+                console.log('[Voice] Transcript:', transcript);
                 const cmd = parseMasterCommand(transcript);
                 if (cmd) {
                     executeMasterCommand(cmd, transcript);
-                    return;
-                } else {
-                    // Sadece "ateşle" gibi belirsiz bir şeyse uyarı göster
-                    const norm = normalizeText(transcript);
-                    if (norm.includes('ateşle') || norm.includes('atesle') ||
-                        norm.includes('launch') || norm.includes('fire')) {
-                        showVoiceToast(`🎤 "${transcript}" — ${t('voiceNoMatch')}`, 'no-match');
-                    }
+                    found = true;
+                    break;
+                }
+            }
+            if (found) break;
+        }
+        if (!found) {
+            const lastRes = event.results[event.results.length - 1];
+            if (lastRes && lastRes[0]) {
+                const heard = lastRes[0].transcript.trim();
+                if (heard) {
+                    showVoiceToast(`🎤 ${t('voiceHeardAny')}: "${heard}" — ${t('voiceNoMatch')}`, 'no-match');
                 }
             }
         }
     };
     rec.onerror = (e) => {
+        console.warn('[Voice] Hata:', e.error);
         if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
             showVoiceToast('❌ ' + t('voiceDenied'), 'error');
             stopVoice();
-        } else if (e.error === 'no-speech') {
-            // sessizlik - görmezden gel
-        } else {
-            console.warn('Speech error:', e.error);
         }
     };
     rec.onend = () => {
+        console.log('[Voice] Oturum kapandı, voiceActive:', voiceActive);
         if (voiceActive) {
-            try { rec.start(); } catch (e) {}
+            setTimeout(() => {
+                if (voiceActive) {
+                    try { rec.start(); } catch (e) { console.warn('[Voice] Restart:', e); }
+                }
+            }, 250);
         }
     };
     return rec;
@@ -348,16 +344,20 @@ function startVoice() {
         recognition.start();
         voiceActive = true;
         updateVoiceBtn();
-        showVoiceToast(`🎤 ${t('voiceListening')}...`, 'ok');
+        showVoiceToast(`🎤 ${t('voiceListening')} — ${t('voiceHint')}`, 'ok');
     } catch (e) {
-        console.warn(e);
+        console.warn('[Voice] Start hatası:', e);
+        try {
+            recognition.stop();
+            setTimeout(() => {
+                try { recognition.start(); voiceActive = true; updateVoiceBtn(); } catch(e2) {}
+            }, 300);
+        } catch (e2) {}
     }
 }
 function stopVoice() {
     voiceActive = false;
-    if (recognition) {
-        try { recognition.stop(); } catch (e) {}
-    }
+    if (recognition) { try { recognition.stop(); } catch (e) {} }
     updateVoiceBtn();
 }
 function updateVoiceBtn() {
@@ -407,14 +407,12 @@ function attemptLogin() {
 loginBtn.onclick = attemptLogin;
 passwordInput.addEventListener('keypress', e => { if (e.key === 'Enter') attemptLogin(); });
 
-// Dil değiştirme (master → global)
 async function setLanguage(lang) {
     try { await db.collection('config').doc('language').set({ lang }, { merge: true }); } catch (e) {}
 }
 document.getElementById('lang-tr').onclick = () => setLanguage('tr');
 document.getElementById('lang-en').onclick = () => setLanguage('en');
 
-// Sesli denetim buton
 const voiceBtn = document.getElementById('voice-btn');
 if (voiceBtn) {
     voiceBtn.onclick = () => {
@@ -479,41 +477,97 @@ function updateClock() {
 }
 setInterval(updateClock, 1000); updateClock();
 
-// ==== FIRESTORE ====
+// ==== FIRESTORE — TEK ROKET (Batch gerektirmez) ====
 async function startCountdown(id, groupId) {
     playClickSound();
     const gid = groupId || `single_${Date.now()}_${id}`;
     try {
-        await db.collection('rockets').doc(`rocket${id}`).update({
-            status: 'countdown', groupId: gid,
+        await db.collection('rockets').doc(`rocket${id}`).set({
+            planet: ROCKETS[id].planet,
+            name: ROCKETS[id].name,
+            status: 'countdown',
+            groupId: gid,
             countdownStart: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        }, { merge: true });
     } catch (e) {
-        try {
-            await db.collection('rockets').doc(`rocket${id}`).set({
-                planet: ROCKETS[id].planet, name: ROCKETS[id].name,
-                status: 'countdown', groupId: gid,
-                countdownStart: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        } catch (e2) {}
+        console.warn('startCountdown hata:', e);
     }
 }
+
 async function stopRocket(id) {
     try {
-        await db.collection('rockets').doc(`rocket${id}`).update({ status: 'idle', launchTime: null });
+        await db.collection('rockets').doc(`rocket${id}`).set({
+            status: 'idle',
+            launchTime: null
+        }, { merge: true });
     } catch (e) {}
 }
-async function resetRocket(id) { playClickSound(); await stopRocket(id); }
-async function launchAll() {
-    const gid = `group_${Date.now()}`;
-    for (let i = 0; i < rocketCount; i++) await startCountdown(i, gid);
+
+async function resetRocket(id) {
+    playClickSound();
+    await stopRocket(id);
 }
+
+// ==== FIRESTORE — TOPLU İŞLEMLER (BATCH = Atomik + Hızlı) ====
+async function launchAll() {
+    playSuccessSound(); // Sadece BİR kez
+    const gid = `group_${Date.now()}`;
+    const batch = db.batch();
+
+    for (let i = 0; i < rocketCount; i++) {
+        const ref = db.collection('rockets').doc(`rocket${i}`);
+        batch.set(ref, {
+            planet: ROCKETS[i].planet,
+            name: ROCKETS[i].name,
+            status: 'countdown',
+            groupId: gid,
+            countdownStart: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    }
+
+    try {
+        await batch.commit();
+        console.log('[LaunchAll] 9 roket tek istekte yazıldı');
+    } catch (e) {
+        console.error('[LaunchAll] Batch başarısız, tek tek yazılıyor:', e);
+        // Yedek plan: batch başarısız olursa paralel yaz
+        await Promise.all(
+            Array.from({ length: rocketCount }, (_, i) =>
+                db.collection('rockets').doc(`rocket${i}`).set({
+                    planet: ROCKETS[i].planet,
+                    name: ROCKETS[i].name,
+                    status: 'countdown',
+                    groupId: gid,
+                    countdownStart: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true }).catch(() => {})
+            )
+        );
+    }
+}
+
 async function stopAll() {
     playBeep(400, 0.2, 0.25);
-    for (let i = 0; i < rocketCount; i++) await stopRocket(i);
+    const batch = db.batch();
+    for (let i = 0; i < rocketCount; i++) {
+        const ref = db.collection('rockets').doc(`rocket${i}`);
+        batch.set(ref, { status: 'idle', launchTime: null }, { merge: true });
+    }
+    try {
+        await batch.commit();
+    } catch (e) {
+        await Promise.all(
+            Array.from({ length: rocketCount }, (_, i) =>
+                db.collection('rockets').doc(`rocket${i}`).set(
+                    { status: 'idle', launchTime: null }, { merge: true }
+                ).catch(() => {})
+            )
+        );
+    }
 }
+
 async function resetAll() {
-    for (let i = 0; i < rocketCount; i++) await resetRocket(i);
+    playClickSound();
+    await stopAll();
 }
 
 // ==== GERİ SAYIM (Master) ====
@@ -536,10 +590,10 @@ function runCountdown(id) {
                 speak(LANG[currentLang].speech[3]);
                 playLaunchSound();
                 try {
-                    await db.collection('rockets').doc(`rocket${id}`).update({
+                    await db.collection('rockets').doc(`rocket${id}`).set({
                         status: 'launching',
                         launchTime: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                    }, { merge: true });
                 } catch (e) {}
                 delete activeCountdowns[id];
             }, 1000);
@@ -585,7 +639,7 @@ function updateRocketUI(id, status) {
     }
 }
 
-// ==== DİL UYGULA & DİNLE ====
+// ==== DİL ====
 function applyLanguage() {
     document.getElementById('header-title').textContent = t('title');
     document.getElementById('live-text').textContent = t('live');

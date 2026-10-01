@@ -1,6 +1,6 @@
 // ==== LOGO YÜKLEME ====
 const logoImage = new Image();
-logoImage.src = 'flag.png'; // GitHub'a yüklediğin logo dosyasının adı
+logoImage.src = 'flag.png';
 logoImage.onload = () => { console.log('[Logo] Yüklendi:', logoImage.naturalWidth, 'x', logoImage.naturalHeight); };
 logoImage.onerror = () => { console.warn('[Logo] Yüklenemedi! Dosya adı doğru mu?'); };
 
@@ -698,7 +698,7 @@ function darkenColor(hex, factor) {
 }
 
 // ==== CANVAS ====
-function getGroundY() { return canvas.height - 90; }
+function getGroundY() { return canvas.height - 110; }
 function resizeCanvas() {
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
@@ -724,7 +724,9 @@ class Rocket {
         this.planet = planetData;
         this.rocketData = rocketData;
         this.groundY = getGroundY();
-        this.width = 60; this.height = 130;
+        // === BÜYÜTÜLMÜŞ ROKET BOYUTLARI ===
+        this.width = 90;   // eskiden 60
+        this.height = 190; // eskiden 130
         this.x = canvas.width / 2;
         this.y = this.groundY - this.height / 2;
         this.vy = 0;
@@ -826,15 +828,15 @@ class Rocket {
             this.currentMass = this.initialMass * (dryMassRatio + (1 - dryMassRatio) * (this.fuel / 100));
             for (let k = 0; k < 3; k++) {
                 this.trail.push({
-                    x: this.x + (Math.random() - 0.5) * 14,
+                    x: this.x + (Math.random() - 0.5) * 18,
                     y: this.y + this.height / 2 + Math.random() * 5,
-                    life: 1, size: 8 + Math.random() * 14,
+                    life: 1, size: 10 + Math.random() * 18,
                     vx: (Math.random() - 0.5) * 30
                 });
             }
-            if (this.trail.length > 200) this.trail.shift();
+            if (this.trail.length > 250) this.trail.shift();
             this.trail.forEach(tt => {
-                tt.life -= dt * 0.8; tt.y += dt * 20; tt.x += tt.vx * dt; tt.size += dt * 15;
+                tt.life -= dt * 0.8; tt.y += dt * 20; tt.x += tt.vx * dt; tt.size += dt * 18;
             });
             this.trail = this.trail.filter(tt => tt.life > 0);
 
@@ -857,9 +859,9 @@ class Rocket {
                 if (chartData.length > 200) chartData.shift();
             }
 
-            if (this.y + this.height / 2 < 0) {
+            if (this.y + this.height / 2 < -this.height) {
                 this.status = 'launched';
-                this.y = -this.height;
+                this.y = -this.height * 1.5;
                 statusMessage.textContent = '';
                 launchBtn.disabled = false; resetBtn.disabled = false;
                 atmosphereEl.style.opacity = '0';
@@ -961,9 +963,9 @@ class Rocket {
 
         // ==== LOGO RESMİ (roket gövdesinin ortasında) ====
         if (logoImage && logoImage.complete && logoImage.naturalWidth > 0) {
-            const logoSize = w * 0.55;
+            const logoSize = w * 0.6;
             const logoX = -logoSize / 2;
-            const logoY = h * 0.05;
+            const logoY = h * 0.03;
 
             // Beyaz çerçeve
             ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
@@ -978,39 +980,29 @@ class Rocket {
             ctx.strokeRect(logoX - 2, logoY - 2, logoSize + 4, logoSize + 4);
         }
 
-        // ==== "KidZania İstanbul" YAZISI (dikey, roketin sağ tarafında) ====
+        // ==== "KidZania İstanbul" YAZISI (roketin ÜSTÜNDE yatay) ====
         ctx.save();
-        ctx.rotate(-Math.PI / 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.98)';
-        ctx.font = 'bold 14px Arial';
+        ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+        ctx.font = 'bold 16px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-        ctx.shadowBlur = 5;
+        ctx.shadowColor = 'rgba(0, 0, 0, 1)';
+        ctx.shadowBlur = 6;
         ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-        // Rotasyon sonrası: x ekseni = roketin uzunluğu, y ekseni = roketin genişliği
-        // y = w * 0.55 → roketin sağ tarafına
-        ctx.fillText('KidZania İstanbul', 0, w * 0.55);
-        ctx.restore();
+        ctx.shadowOffsetY = 2;
 
-        // ==== ROKET ADI (dikey, roketin sol tarafında) ====
-        ctx.save();
-        ctx.rotate(-Math.PI / 2);
-        ctx.fillStyle = 'rgba(255, 220, 100, 0.98)';
-        ctx.font = 'bold 12px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-        ctx.shadowBlur = 5;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-        ctx.fillText(this.rocketData.name.toUpperCase(), 0, -w * 0.55);
+        // Beyaz kontur (kenarlık) — yazıyı öne çıkarmak için
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+        ctx.lineWidth = 3;
+        ctx.strokeText('KidZania İstanbul', 0, -h * 0.58);
+
+        // Ana yazı
+        ctx.fillText('KidZania İstanbul', 0, -h * 0.58);
         ctx.restore();
 
         // Alev
         if (this.status === 'launching' && this.fuel > 0) {
-            const fl = 60 + Math.random() * 40;
+            const fl = 70 + Math.random() * 50;
             const fw = w * 0.55;
             const fg = ctx.createLinearGradient(0, h*0.5, 0, h*0.5 + fl);
             fg.addColorStop(0, '#ffffff'); fg.addColorStop(0.15, '#ffff00');
@@ -1160,7 +1152,7 @@ function updateInfoPanel() {
 function drawPlanetGround() {
     if (!rocket) return;
     const groundY = getGroundY();
-    const curveHeight = 90;
+    const curveHeight = 110;
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(0, canvas.height);

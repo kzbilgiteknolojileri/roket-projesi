@@ -24,7 +24,7 @@ const ROCKETS = [
 ];
 
 const rocketCount = 9;
-const MASTER_PASSWORD = '1234';
+const MASTER_PASSWORD = '230998';
 
 // ==== ÇEVİRİLER ====
 const LANG = {

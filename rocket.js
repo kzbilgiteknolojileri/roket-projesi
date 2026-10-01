@@ -1,3 +1,9 @@
+// ==== LOGO YÜKLEME ====
+const logoImage = new Image();
+logoImage.src = 'flag.png'; // GitHub'a yüklediğin logo dosyasının adı
+logoImage.onload = () => { console.log('[Logo] Yüklendi:', logoImage.naturalWidth, 'x', logoImage.naturalHeight); };
+logoImage.onerror = () => { console.warn('[Logo] Yüklenemedi! Dosya adı doğru mu?'); };
+
 const urlParams = new URLSearchParams(window.location.search);
 const rocketId = parseInt(urlParams.get('id') || '0');
 
@@ -29,8 +35,7 @@ const ROCKETS = [
 const currentRocket = ROCKETS[rocketId];
 const currentPlanet = PLANETS[currentRocket.planet];
 
-// ==== ANİMASYON SÜRELERİ (gezegene göre farklı) ====
-// Plüton en hızlı (15 sn), Jüpiter en yavaş (25 sn)
+// ==== ANİMASYON SÜRELERİ ====
 const ANIMATION_DURATIONS = {
     'Merkür':  16.0,
     'Venüs':   19.0,
@@ -889,6 +894,7 @@ class Rocket {
         return `rgb(${Math.floor(r*factor)}, ${Math.floor(g*factor)}, ${Math.floor(b*factor)})`;
     }
     draw() {
+        // Roket izi (duman)
         this.trail.forEach(tt => {
             const alpha = tt.life * 0.5;
             const grd = ctx.createRadialGradient(tt.x, tt.y, 0, tt.x, tt.y, tt.size);
@@ -902,6 +908,8 @@ class Rocket {
         ctx.save();
         ctx.translate(this.x, this.y);
         const w = this.width, h = this.height;
+
+        // Kanatçıklar
         ctx.fillStyle = '#cc2222'; ctx.strokeStyle = '#881111'; ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(-w*0.3, h*0.1); ctx.lineTo(-w*0.7, h*0.5); ctx.lineTo(-w*0.3, h*0.45);
@@ -909,12 +917,16 @@ class Rocket {
         ctx.beginPath();
         ctx.moveTo(w*0.3, h*0.1); ctx.lineTo(w*0.7, h*0.5); ctx.lineTo(w*0.3, h*0.45);
         ctx.closePath(); ctx.fill(); ctx.stroke();
+
+        // Nozzle
         ctx.fillStyle = '#3a3a3a';
         ctx.beginPath();
         ctx.moveTo(-w*0.2, h*0.4); ctx.lineTo(-w*0.32, h*0.5);
         ctx.lineTo(w*0.32, h*0.5); ctx.lineTo(w*0.2, h*0.4);
         ctx.closePath(); ctx.fill();
         ctx.strokeStyle = '#222'; ctx.lineWidth = 1.5; ctx.stroke();
+
+        // Gövde
         const bg = ctx.createLinearGradient(-w*0.3, 0, w*0.3, 0);
         bg.addColorStop(0, this.darken(this.color, 0.55));
         bg.addColorStop(0.25, this.color); bg.addColorStop(0.75, this.color);
@@ -923,9 +935,13 @@ class Rocket {
         ctx.fillRect(-w*0.3, -h*0.3, w*0.6, h*0.7);
         ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 2;
         ctx.strokeRect(-w*0.3, -h*0.3, w*0.6, h*0.7);
+
+        // Beyaz şeritler
         ctx.fillStyle = 'rgba(255,255,255,0.7)';
         ctx.fillRect(-w*0.3, -h*0.05, w*0.6, 4);
         ctx.fillRect(-w*0.3, h*0.12, w*0.6, 4);
+
+        // Burun
         ctx.fillStyle = '#cc2222';
         ctx.beginPath();
         ctx.moveTo(0, -h*0.5); ctx.lineTo(w*0.3, -h*0.3); ctx.lineTo(-w*0.3, -h*0.3);
@@ -935,11 +951,64 @@ class Rocket {
         ctx.beginPath();
         ctx.moveTo(-w*0.15, -h*0.42); ctx.lineTo(0, -h*0.5); ctx.lineTo(-w*0.05, -h*0.32);
         ctx.closePath(); ctx.fill();
+
+        // Pencere
         ctx.fillStyle = 'rgba(100,180,255,0.95)';
         ctx.beginPath(); ctx.arc(0, -h*0.12, w*0.15, 0, Math.PI*2); ctx.fill();
         ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 3; ctx.stroke();
         ctx.fillStyle = 'rgba(255,255,255,0.5)';
         ctx.beginPath(); ctx.arc(-w*0.05, -h*0.15, w*0.05, 0, Math.PI*2); ctx.fill();
+
+        // ==== LOGO RESMİ (roket gövdesinin ortasında) ====
+        if (logoImage && logoImage.complete && logoImage.naturalWidth > 0) {
+            const logoSize = w * 0.55;
+            const logoX = -logoSize / 2;
+            const logoY = h * 0.05;
+
+            // Beyaz çerçeve
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.fillRect(logoX - 2, logoY - 2, logoSize + 4, logoSize + 4);
+
+            // Logo
+            ctx.drawImage(logoImage, logoX, logoY, logoSize, logoSize);
+
+            // İnce çerçeve çizgisi
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(logoX - 2, logoY - 2, logoSize + 4, logoSize + 4);
+        }
+
+        // ==== "KidZania İstanbul" YAZISI (dikey, roketin sağ tarafında) ====
+        ctx.save();
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.98)';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+        ctx.shadowBlur = 5;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        // Rotasyon sonrası: x ekseni = roketin uzunluğu, y ekseni = roketin genişliği
+        // y = w * 0.55 → roketin sağ tarafına
+        ctx.fillText('KidZania İstanbul', 0, w * 0.55);
+        ctx.restore();
+
+        // ==== ROKET ADI (dikey, roketin sol tarafında) ====
+        ctx.save();
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = 'rgba(255, 220, 100, 0.98)';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+        ctx.shadowBlur = 5;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.fillText(this.rocketData.name.toUpperCase(), 0, -w * 0.55);
+        ctx.restore();
+
+        // Alev
         if (this.status === 'launching' && this.fuel > 0) {
             const fl = 60 + Math.random() * 40;
             const fw = w * 0.55;
@@ -1202,14 +1271,14 @@ function drawScene() {
 // ==== GERİ SAYIM (Roket) — 5'ten başlar ====
 function runLocalCountdown() {
     if (countdownTimer) return;
-    let count = 5; // 5'ten başla
+    let count = 5;
     countdownOverlay.classList.add('active');
     countdownNumber.textContent = count;
     countdownNumber.style.animation = 'none';
     void countdownNumber.offsetWidth;
     countdownNumber.style.animation = 'countdownPulse 0.8s ease-out';
     playWarningSound();
-    speak(LANG[currentLang].speech[0]); // "Beş" / "Five"
+    speak(LANG[currentLang].speech[0]);
     statusMessage.textContent = t('countdown');
     statusMessage.style.color = '#ffcc00';
     launchBtn.disabled = true;
@@ -1220,7 +1289,6 @@ function runLocalCountdown() {
             countdownNumber.style.animation = 'none';
             void countdownNumber.offsetWidth;
             countdownNumber.style.animation = 'countdownPulse 0.8s ease-out';
-            // count=4 → speech[1]="Dört", count=3 → speech[2]="Üç", count=2 → speech[3]="İki", count=1 → speech[4]="Bir"
             const speechIdx = 5 - count;
             if (speechIdx >= 0 && speechIdx < 5) {
                 speak(LANG[currentLang].speech[speechIdx]);
@@ -1229,7 +1297,7 @@ function runLocalCountdown() {
         } else {
             clearInterval(countdownTimer); countdownTimer = null;
             countdownOverlay.classList.remove('active');
-            speak(LANG[currentLang].speech[5]); // "Ateş!"
+            speak(LANG[currentLang].speech[5]);
             playLaunchSound();
             rocket.start();
             if (isCountdownInitiator) {

@@ -960,76 +960,32 @@ class Rocket {
         ctx.fillStyle = 'rgba(255,255,255,0.5)';
         ctx.beginPath(); ctx.arc(-w*0.05, -h*0.15, w*0.05, 0, Math.PI*2); ctx.fill();
 
-        // ==== LOGO RESMİ (roket gövdesinin üst kısmında) ====
+        // ==== LOGO RESMİ (roket gövdesinin ortasında, biraz yukarıda) ====
         if (logoImage && logoImage.complete && logoImage.naturalWidth > 0) {
-            const logoSize = w * 0.55;
+            const logoSize = w * 0.6;
             const logoX = -logoSize / 2;
-            const logoY = -h * 0.22;
+            const logoY = h * 0.03 - h * 0.06; // eski konum + 1 tık yukarı
             ctx.drawImage(logoImage, logoX, logoY, logoSize, logoSize);
         }
 
-        // ==== "KidZania" ve "İstanbul" YAZILARI — LOGONUN ALTINDA, ALT ALTA, OVAL EFEKTLİ ====
+        // ==== "KidZania" ve "İstanbul" YAZILARI — LOGONUN ALTINDA, ALT ALTA ====
         ctx.save();
-
-        const textY1 = h * 0.16;   // KidZania yazısı (üstte)
-        const textY2 = h * 0.27;   // İstanbul yazısı (altta)
-        const textCenterX = 0;
-        const ovalWidth = w * 0.62;
-        const ovalHeight1 = 30;
-        const ovalHeight2 = 30;
-
-        // --- KİDZANİA ---
-        ctx.save();
-        // Oval arka plan (yarı şeffaf siyah - derinlik hissi)
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-        ctx.beginPath();
-        ctx.ellipse(textCenterX, textY1, ovalWidth / 2, ovalHeight1 / 2, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Üst kenarda ince parlak çizgi (roket gövdesinden gelen ışık)
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.ellipse(textCenterX, textY1 - 2, ovalWidth / 2, ovalHeight1 / 2, 0, Math.PI, Math.PI * 2);
-        ctx.stroke();
-
-        // Yazı
         ctx.fillStyle = 'rgba(255, 255, 255, 1)';
-        ctx.font = 'bold 13px Arial';
+        ctx.font = 'bold 11px Arial';    // 2 tık küçültüldü
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-        ctx.shadowBlur = 3;
-        ctx.shadowOffsetY = 1;
-        ctx.fillText('KidZania', textCenterX, textY1);
-        ctx.restore();
-
-        // --- İSTANBUL ---
-        ctx.save();
-        // Oval arka plan
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-        ctx.beginPath();
-        ctx.ellipse(textCenterX, textY2, ovalWidth / 2, ovalHeight2 / 2, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Üst kenar parlaklığı
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.ellipse(textCenterX, textY2 - 2, ovalWidth / 2, ovalHeight2 / 2, 0, Math.PI, Math.PI * 2);
-        ctx.stroke();
-
-        // Yazı
-        ctx.fillStyle = 'rgba(255, 255, 255, 1)';
-        ctx.font = 'bold 13px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-        ctx.shadowBlur = 3;
-        ctx.shadowOffsetY = 1;
-        ctx.fillText('İstanbul', textCenterX, textY2);
-        ctx.restore();
-
+        ctx.shadowColor = 'rgba(0, 0, 0, 1)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+        ctx.lineWidth = 2.5;
+        // KidZania yazısı (üstte)
+        ctx.strokeText('KidZania', 0, h * 0.16);
+        ctx.fillText('KidZania', 0, h * 0.16);
+        // İstanbul yazısı (altta)
+        ctx.strokeText('İstanbul', 0, h * 0.27);
+        ctx.fillText('İstanbul', 0, h * 0.27);
         ctx.restore();
 
         // Alev

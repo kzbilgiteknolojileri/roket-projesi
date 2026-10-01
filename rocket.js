@@ -724,9 +724,8 @@ class Rocket {
         this.planet = planetData;
         this.rocketData = rocketData;
         this.groundY = getGroundY();
-        // === BÜYÜTÜLMÜŞ ROKET BOYUTLARI ===
-        this.width = 90;   // eskiden 60
-        this.height = 190; // eskiden 130
+        this.width = 90;
+        this.height = 190;
         this.x = canvas.width / 2;
         this.y = this.groundY - this.height / 2;
         this.vy = 0;
@@ -961,43 +960,47 @@ class Rocket {
         ctx.fillStyle = 'rgba(255,255,255,0.5)';
         ctx.beginPath(); ctx.arc(-w*0.05, -h*0.15, w*0.05, 0, Math.PI*2); ctx.fill();
 
-        // ==== LOGO RESMİ (roket gövdesinin ortasında) ====
+        // ==== LOGO RESMİ (roket gövdesinin ortasında, ŞEFFAF) ====
         if (logoImage && logoImage.complete && logoImage.naturalWidth > 0) {
             const logoSize = w * 0.6;
             const logoX = -logoSize / 2;
             const logoY = h * 0.03;
-
-            // Beyaz çerçeve
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-            ctx.fillRect(logoX - 2, logoY - 2, logoSize + 4, logoSize + 4);
-
-            // Logo
+            // Sadece logo çizilir — arka plan YOK
             ctx.drawImage(logoImage, logoX, logoY, logoSize, logoSize);
-
-            // İnce çerçeve çizgisi
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(logoX - 2, logoY - 2, logoSize + 4, logoSize + 4);
         }
 
-        // ==== "KidZania İstanbul" YAZISI (roketin ÜSTÜNDE yatay) ====
+        // ==== "KidZania" YAZISI — GÖVDENİN SAĞ TARAFINDA ====
         ctx.save();
         ctx.fillStyle = 'rgba(255, 255, 255, 1)';
-        ctx.font = 'bold 16px Arial';
-        ctx.textAlign = 'center';
+        ctx.font = 'bold 11px Arial';
+        ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
         ctx.shadowColor = 'rgba(0, 0, 0, 1)';
-        ctx.shadowBlur = 6;
+        ctx.shadowBlur = 3;
         ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 2;
-
-        // Beyaz kontur (kenarlık) — yazıyı öne çıkarmak için
+        ctx.shadowOffsetY = 0;
+        // Gövdenin sağ tarafına yerleştir (gövde sınırı w*0.3)
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
-        ctx.lineWidth = 3;
-        ctx.strokeText('KidZania İstanbul', 0, -h * 0.58);
+        ctx.lineWidth = 2.5;
+        ctx.strokeText('KidZania', w * 0.28, -h * 0.28);
+        ctx.fillText('KidZania', w * 0.28, -h * 0.28);
+        ctx.restore();
 
-        // Ana yazı
-        ctx.fillText('KidZania İstanbul', 0, -h * 0.58);
+        // ==== "İstanbul" YAZISI — GÖVDENİN SOL TARAFINDA ====
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+        ctx.font = 'bold 11px Arial';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0, 0, 0, 1)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        // Gövdenin sol tarafına yerleştir
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+        ctx.lineWidth = 2.5;
+        ctx.strokeText('İstanbul', -w * 0.28, -h * 0.28);
+        ctx.fillText('İstanbul', -w * 0.28, -h * 0.28);
         ctx.restore();
 
         // Alev

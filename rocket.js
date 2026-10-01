@@ -960,18 +960,18 @@ class Rocket {
         ctx.fillStyle = 'rgba(255,255,255,0.5)';
         ctx.beginPath(); ctx.arc(-w*0.05, -h*0.15, w*0.05, 0, Math.PI*2); ctx.fill();
 
-        // ==== LOGO RESMİ (roket gövdesinin ortasında, biraz yukarıda) ====
+                // ==== LOGO RESMİ (roket gövdesinin ortasında, 1 tık daha yukarıda) ====
         if (logoImage && logoImage.complete && logoImage.naturalWidth > 0) {
             const logoSize = w * 0.6;
             const logoX = -logoSize / 2;
-            const logoY = h * 0.03 - h * 0.06; // eski konum + 1 tık yukarı
+            const logoY = h * 0.03 - h * 0.12; // 1 tık daha yukarı
             ctx.drawImage(logoImage, logoX, logoY, logoSize, logoSize);
         }
 
-        // ==== "KidZania" ve "İstanbul" YAZILARI — LOGONUN ALTINDA, ALT ALTA ====
+        // ==== "KidZania" ve "İstanbul" YAZILARI — LOGONUN ALTINDA, SATIR ARALIĞI SIFIR ====
         ctx.save();
         ctx.fillStyle = 'rgba(255, 255, 255, 1)';
-        ctx.font = 'bold 11px Arial';    // 2 tık küçültüldü
+        ctx.font = 'bold 11px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.shadowColor = 'rgba(0, 0, 0, 1)';
@@ -981,11 +981,11 @@ class Rocket {
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
         ctx.lineWidth = 2.5;
         // KidZania yazısı (üstte)
-        ctx.strokeText('KidZania', 0, h * 0.16);
-        ctx.fillText('KidZania', 0, h * 0.16);
-        // İstanbul yazısı (altta)
-        ctx.strokeText('İstanbul', 0, h * 0.27);
-        ctx.fillText('İstanbul', 0, h * 0.27);
+        ctx.strokeText('KidZania', 0, h * 0.16 + 3);
+        ctx.fillText('KidZania', 0, h * 0.16 + 3);
+        // İstanbul yazısı (altta) — satır aralığı sıfır (hemen altında)
+        ctx.strokeText('İstanbul', 0, h * 0.16 + 14);
+        ctx.fillText('İstanbul', 0, h * 0.16 + 14);
         ctx.restore();
 
         // Alev

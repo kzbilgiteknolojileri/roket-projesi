@@ -2,8 +2,6 @@ const urlParams = new URLSearchParams(window.location.search);
 const rocketId = parseInt(urlParams.get('id') || '0');
 
 // ==== GEZEGEN VERİLERİ ====
-// rank: yarış sırası (1 = en hızlı, 9 = en yavaş) — animasyon süresi buna göre belirlenir
-// ringColor / atmosphere: gezegen görseli için
 const PLANETS = {
     'Merkür':  { nameEn: 'Mercury', gravity: 3.7,  escapeVelocity: 4.3,  color: '#8c8c8c', atmosphere: '#c4c4c4', ring: false, orbitVelocity: 3000,  orbitAltitude: 200000, realFlightTime: 420 },
     'Venüs':   { nameEn: 'Venus',   gravity: 8.87, escapeVelocity: 10.3, color: '#e6b800', atmosphere: '#ffe680', ring: false, orbitVelocity: 7300,  orbitAltitude: 300000, realFlightTime: 480 },
@@ -32,7 +30,7 @@ const currentRocket = ROCKETS[rocketId];
 const currentPlanet = PLANETS[currentRocket.planet];
 
 // ==== ANİMASYON SÜRELERİ (gezegene göre farklı) ====
-// Plüton en hızlı (15 sn), Jüpiter en yavaş (25 sn) → 10 saniye fark
+// Plüton en hızlı (15 sn), Jüpiter en yavaş (25 sn)
 const ANIMATION_DURATIONS = {
     'Merkür':  16.0,
     'Venüs':   19.0,
@@ -74,8 +72,8 @@ const LANG = {
         comparison: '🏆 GÖREV KARŞILAŞTIRMASI', pending: 'bekliyor',
         launchBtn: '🚀 ATEŞLE', resetBtn: '🔄 SIFIRLA',
         gravity: 'YERÇEKİMİ', escapeVel: 'KAÇIŞ HIZI',
-        orderSuffix: '. sırada çıktı', // "1. sırada çıktı"
-        speech: ['Üç', 'İki', 'Bir', 'Ateş!'], speechLang: 'tr-TR',
+        orderSuffix: '. sırada çıktı',
+        speech: ['Beş', 'Dört', 'Üç', 'İki', 'Bir', 'Ateş!'], speechLang: 'tr-TR',
         voiceStart: '🎤 SESLİ DENETİM', voiceListening: 'DİNLİYOR',
         voiceHeardAny: 'Duyulan', voiceNoMatch: 'Bu ekran için değil',
         voiceCommandLaunch: 'ateşleme', voiceCommandReset: 'sıfırlama',
@@ -98,7 +96,7 @@ const LANG = {
         launchBtn: '🚀 LAUNCH', resetBtn: '🔄 RESET',
         gravity: 'GRAVITY', escapeVel: 'ESCAPE VELOCITY',
         orderSuffix: '-th to arrive',
-        speech: ['Three', 'Two', 'One', 'Fire!'], speechLang: 'en-US',
+        speech: ['Five', 'Four', 'Three', 'Two', 'One', 'Fire!'], speechLang: 'en-US',
         voiceStart: '🎤 VOICE CONTROL', voiceListening: 'LISTENING',
         voiceHeardAny: 'Heard', voiceNoMatch: 'Not for this screen',
         voiceCommandLaunch: 'launch', voiceCommandReset: 'reset',
@@ -124,7 +122,6 @@ function formatAltitude(m) {
     if (m < 100000) return `${(m / 1000).toFixed(1)} km`;
     return `${Math.round(m / 1000).toLocaleString('tr-TR')} km`;
 }
-// Sıralama metni: 1. / 2. / 3. ... (İngilizce: 1st, 2nd, 3rd)
 function formatOrdinal(n) {
     if (currentLang === 'tr') return `${n}.`;
     if (n === 1) return '1st';
@@ -227,7 +224,7 @@ function playLaunchSound() {
     } catch (e) {}
 }
 
-// ==== ROKET MOTOR SESİ (Loop — yükselirken) ====
+// ==== ROKET MOTOR SESİ (Loop) ====
 let engineNoiseSource = null;
 let engineGainNode = null;
 let engineFilter = null;
@@ -237,8 +234,6 @@ function startEngineSound() {
     try {
         if (engineActive) return;
         const c = getAudioCtx();
-
-        // Beyaz gürültü kaynağı (2 sn loop buffer)
         const bufferSize = c.sampleRate * 2;
         const buffer = c.createBuffer(1, bufferSize, c.sampleRate);
         const data = buffer.getChannelData(0);
@@ -248,18 +243,15 @@ function startEngineSound() {
         noise.buffer = buffer;
         noise.loop = true;
 
-        // Low-pass filtre — motor gürültüsünü kalınlaştırır
         const filter = c.createBiquadFilter();
         filter.type = 'lowpass';
         filter.frequency.value = 400;
         filter.Q.value = 0.7;
 
-        // Gain (ses seviyesi)
         const gain = c.createGain();
         gain.gain.setValueAtTime(0, c.currentTime);
         gain.gain.linearRampToValueAtTime(0.18, c.currentTime + 0.6);
 
-        // LFO (titreşim) — motor sarsıntısı hissi
         const lfo = c.createOscillator();
         lfo.frequency.value = 12;
         const lfoGain = c.createGain();
@@ -282,14 +274,11 @@ function startEngineSound() {
 }
 
 function updateEngineSound(progress) {
-    // progress 0..1
     if (!engineActive || !engineFilter || !engineGainNode) return;
     try {
         const c = getAudioCtx();
-        // Yukarı çıktıkça ses daha tiz ve biraz daha az (atmosfer dışına)
         const freq = 400 + progress * 500;
         engineFilter.frequency.setTargetAtTime(freq, c.currentTime, 0.2);
-        // Ses seviyesi hafif azalsın
         const vol = 0.18 - progress * 0.06;
         engineGainNode.gain.setTargetAtTime(Math.max(0.08, vol), c.currentTime, 0.3);
     } catch (e) {}
@@ -324,7 +313,7 @@ function speak(text) {
     } catch (e) {}
 }
 
-// ==== SESLİ KOMUT ====
+// ==== SESLİ KOMUT (ROKET) ====
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
 let voiceActive = false;
@@ -584,7 +573,6 @@ function updatePlanetViewTitle() {
     planetInfoRow.textContent = `${t('gravity')}: ${currentPlanet.gravity} m/s² • ${t('escapeVel')}: ${currentPlanet.escapeVelocity} km/s`;
 }
 
-// Gezegen çizimi
 let planetRotation = 0;
 function drawPlanetView(dt) {
     const w = planetCanvas.width, h = planetCanvas.height;
@@ -594,7 +582,6 @@ function drawPlanetView(dt) {
 
     planetCtx.clearRect(0, 0, w, h);
 
-    // Dış parlaklık (atmosfer)
     const glowGrad = planetCtx.createRadialGradient(cx, cy, radius * 0.85, cx, cy, radius * 1.4);
     glowGrad.addColorStop(0, hexToRgba(currentPlanet.atmosphere, 0.45));
     glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
@@ -603,7 +590,6 @@ function drawPlanetView(dt) {
     planetCtx.arc(cx, cy, radius * 1.4, 0, Math.PI * 2);
     planetCtx.fill();
 
-    // Satürn/Uranüs halkası (arkada)
     if (currentPlanet.ring) {
         planetCtx.save();
         planetCtx.translate(cx, cy);
@@ -616,7 +602,6 @@ function drawPlanetView(dt) {
         planetCtx.restore();
     }
 
-    // Gezegen gövdesi — radyal gradyan (küre efekti)
     const grad = planetCtx.createRadialGradient(
         cx - radius * 0.35, cy - radius * 0.35, radius * 0.1,
         cx, cy, radius
@@ -629,7 +614,6 @@ function drawPlanetView(dt) {
     planetCtx.arc(cx, cy, radius, 0, Math.PI * 2);
     planetCtx.fill();
 
-    // Yüzey dokusu — dönen bulutlar/noktalar
     planetCtx.save();
     planetCtx.beginPath();
     planetCtx.arc(cx, cy, radius, 0, Math.PI * 2);
@@ -645,7 +629,6 @@ function drawPlanetView(dt) {
         planetCtx.ellipse(sx, sy, sr, sr * 0.55, offsetAngle, 0, Math.PI * 2);
         planetCtx.fill();
     }
-    // Parlak bulut şeritleri
     for (let i = 0; i < 4; i++) {
         const angle = (i / 4) * Math.PI * 2 - planetRotation * 0.7;
         const bx = cx + Math.cos(angle) * radius * 0.5;
@@ -657,7 +640,6 @@ function drawPlanetView(dt) {
     }
     planetCtx.restore();
 
-    // Işık parlaması (üst-sol)
     const shine = planetCtx.createRadialGradient(
         cx - radius * 0.4, cy - radius * 0.4, 0,
         cx - radius * 0.4, cy - radius * 0.4, radius * 0.6
@@ -669,14 +651,12 @@ function drawPlanetView(dt) {
     planetCtx.arc(cx, cy, radius, 0, Math.PI * 2);
     planetCtx.fill();
 
-    // Kenar ışığı (rim light)
     planetCtx.strokeStyle = hexToRgba(currentPlanet.atmosphere, 0.6);
     planetCtx.lineWidth = 2;
     planetCtx.beginPath();
     planetCtx.arc(cx, cy, radius, 0, Math.PI * 2);
     planetCtx.stroke();
 
-    // Satürn/Uranüs halkası (önde)
     if (currentPlanet.ring) {
         planetCtx.save();
         planetCtx.translate(cx, cy);
@@ -762,14 +742,13 @@ class Rocket {
         this.descentDuration = 8;
         this.descentTimeout = null;
         this.orbitArrivalRank = null;
-        this.launchStartMs = null;   // Race sıralaması için
+        this.launchStartMs = null;
         this.recalculateAcceleration();
     }
     recalculateAcceleration() {
         const startY = this.groundY - this.height / 2;
         const endY = -this.height;
         const travelDistance = startY - endY;
-        // Sabit süre → ivme = 2*d / t²
         this.netAcceleration = 2 * travelDistance / (this.animationDuration * this.animationDuration);
         this.timeMultiplier = this.realFlightTime / this.animationDuration;
     }
@@ -821,7 +800,7 @@ class Rocket {
     startDescent() {
         this.status = 'descending';
         this.trail = [];
-        stopEngineSound(); // İniş başlarken motoru kapat
+        stopEngineSound();
         this.descentStartY = this.y;
         this.descentEndY = this.groundY - this.height / 2;
         this.descentElapsed = 0;
@@ -859,7 +838,6 @@ class Rocket {
             const altRatio = Math.min(1, (startY - this.y) / travelDistance);
             atmosphereEl.style.opacity = String(Math.max(0, 1 - altRatio * 1.2));
 
-            // Motor sesi güncelle
             const progress = Math.min(1, this.elapsedTime / this.animationDuration);
             updateEngineSound(progress);
 
@@ -993,7 +971,6 @@ async function showStatsAndSave() {
     const maxSpeed = rocket.planet.orbitVelocity;
     const maxAlt = rocket.planet.orbitAltitude;
 
-    // Uçuş süresi bilgisini kaydet
     try {
         await db.collection('rockets').doc(`rocket${rocketId}`).set({
             status: 'launched',
@@ -1008,12 +985,9 @@ async function showStatsAndSave() {
         }, { merge: true });
     } catch (e) { console.warn(e); }
 
-    // Sıralama: grup varsa karşılaştır, yoksa kendi süresini göster
     if (currentGroupId && currentGroupId.startsWith('group_')) {
-        // Grup karşılaştırması yap → sıralama burada belirlenir
         startComparisonListener();
     } else {
-        // Tek ateşleme: kendi animasyon süresini göster
         statLabelTime.textContent = t('soloFlight');
         statValTime.textContent = formatTime(realTime);
         statValFuel.textContent = `%${fuelUsed.toFixed(1)}`;
@@ -1041,17 +1015,14 @@ function startComparisonListener() {
         });
         if (rows.length <= 1) return;
 
-        // Sıralama: animationTime (küçük = daha erken bitti = daha hızlı)
         const done = rows
             .filter(r => r.stats && r.stats.animationTime !== undefined)
             .sort((a, b) => a.stats.animationTime - b.stats.animationTime);
         const pending = rows.filter(r => !r.stats || r.stats.animationTime === undefined);
 
-        // Kendi sıralamamı bul
         const myIndex = done.findIndex(r => r.id === rocketId);
         const myRank = myIndex >= 0 ? myIndex + 1 : null;
 
-        // İstatistik panelini güncelle
         if (myRank !== null) {
             statLabelTime.textContent = t('orbitOrder');
             statValTime.textContent = `${formatOrdinal(myRank)}`;
@@ -1067,7 +1038,6 @@ function startComparisonListener() {
         successOverlay.classList.add('active');
         statsPanel.style.display = 'block';
 
-        // Karşılaştırma listesi
         comparisonList.innerHTML = '';
         done.forEach((r, i) => {
             const row = document.createElement('div');
@@ -1117,7 +1087,7 @@ function updateInfoPanel() {
     else infoFuel.style.color = '#00cc66';
 }
 
-// ==== GEZEGEN (Yüzey — roket kalkış yaptığı zemin) ====
+// ==== GEZEGEN (Yüzey) ====
 function drawPlanetGround() {
     if (!rocket) return;
     const groundY = getGroundY();
@@ -1147,7 +1117,6 @@ function drawPlanetGround() {
     }
     ctx.restore();
 
-    // Alt yazı (sağ alt)
     const planetName = currentLang === 'tr' ? rocket.rocketData.planet : rocket.planet.nameEn;
     ctx.save();
     ctx.textAlign = 'right';
@@ -1209,7 +1178,6 @@ function animate(time) {
     const dt = Math.min((time - lastTime) / 1000, 0.05);
     lastTime = time;
 
-    // Ana canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawStars(); updateAndDrawShootingStars(dt); drawPlanetGround();
     if (rocket) {
@@ -1220,7 +1188,6 @@ function animate(time) {
         } else { animationId = null; }
     }
 
-    // Planet view canvas — her zaman çizilsin (idle bile)
     lastPlanetDraw += dt;
     drawPlanetView(dt);
 }
@@ -1232,17 +1199,17 @@ function drawScene() {
     drawPlanetView(0);
 }
 
-// ==== GERİ SAYIM ====
+// ==== GERİ SAYIM (Roket) — 5'ten başlar ====
 function runLocalCountdown() {
     if (countdownTimer) return;
-    let count = 3;
+    let count = 5; // 5'ten başla
     countdownOverlay.classList.add('active');
     countdownNumber.textContent = count;
     countdownNumber.style.animation = 'none';
     void countdownNumber.offsetWidth;
     countdownNumber.style.animation = 'countdownPulse 0.8s ease-out';
     playWarningSound();
-    speak(LANG[currentLang].speech[0]);
+    speak(LANG[currentLang].speech[0]); // "Beş" / "Five"
     statusMessage.textContent = t('countdown');
     statusMessage.style.color = '#ffcc00';
     launchBtn.disabled = true;
@@ -1253,12 +1220,16 @@ function runLocalCountdown() {
             countdownNumber.style.animation = 'none';
             void countdownNumber.offsetWidth;
             countdownNumber.style.animation = 'countdownPulse 0.8s ease-out';
-            speak(LANG[currentLang].speech[3 - count]);
+            // count=4 → speech[1]="Dört", count=3 → speech[2]="Üç", count=2 → speech[3]="İki", count=1 → speech[4]="Bir"
+            const speechIdx = 5 - count;
+            if (speechIdx >= 0 && speechIdx < 5) {
+                speak(LANG[currentLang].speech[speechIdx]);
+            }
             playWarningSound();
         } else {
             clearInterval(countdownTimer); countdownTimer = null;
             countdownOverlay.classList.remove('active');
-            speak(LANG[currentLang].speech[3]);
+            speak(LANG[currentLang].speech[5]); // "Ateş!"
             playLaunchSound();
             rocket.start();
             if (isCountdownInitiator) {
@@ -1374,7 +1345,6 @@ async function init() {
     updatePlanetViewTitle();
     drawScene();
 
-    // Planet view animasyonu her zaman çalışsın
     function planetLoop(t) {
         const dt = Math.min((t - lastPlanetDraw) / 1000, 0.05);
         lastPlanetDraw = t;

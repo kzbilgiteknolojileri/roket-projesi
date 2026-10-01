@@ -41,7 +41,7 @@ const LANG = {
         loginSub: 'Yetkili giriş gereklidir',
         loginPass: 'Şifre', loginBtn: 'GİRİŞ YAP',
         loginError: '❌ Hatalı şifre!',
-        speech: ['Üç', 'İki', 'Bir', 'Ateş!'], speechLang: 'tr-TR',
+        speech: ['Beş', 'Dört', 'Üç', 'İki', 'Bir', 'Ateş!'], speechLang: 'tr-TR',
         voiceStart: 'SESLİ DENETİM', voiceListening: 'DİNLİYOR',
         voiceHeard: 'Duyuldu', voiceNoMatch: 'Anlaşılamadı',
         voiceLaunchAll: 'Tüm roketler ateşlendi!',
@@ -66,7 +66,7 @@ const LANG = {
         loginSub: 'Authorized access required',
         loginPass: 'Password', loginBtn: 'LOG IN',
         loginError: '❌ Wrong password!',
-        speech: ['Three', 'Two', 'One', 'Fire!'], speechLang: 'en-US',
+        speech: ['Five', 'Four', 'Three', 'Two', 'One', 'Fire!'], speechLang: 'en-US',
         voiceStart: 'VOICE CONTROL', voiceListening: 'LISTENING',
         voiceHeard: 'Heard', voiceNoMatch: 'Not understood',
         voiceLaunchAll: 'All rockets launched!',
@@ -477,7 +477,7 @@ function updateClock() {
 }
 setInterval(updateClock, 1000); updateClock();
 
-// ==== FIRESTORE — TEK ROKET (Batch gerektirmez) ====
+// ==== FIRESTORE — TEK ROKET ====
 async function startCountdown(id, groupId) {
     playClickSound();
     const gid = groupId || `single_${Date.now()}_${id}`;
@@ -508,9 +508,9 @@ async function resetRocket(id) {
     await stopRocket(id);
 }
 
-// ==== FIRESTORE — TOPLU İŞLEMLER (BATCH = Atomik + Hızlı) ====
+// ==== FIRESTORE — TOPLU İŞLEMLER (BATCH) ====
 async function launchAll() {
-    playSuccessSound(); // Sadece BİR kez
+    playSuccessSound();
     const gid = `group_${Date.now()}`;
     const batch = db.batch();
 
@@ -530,7 +530,6 @@ async function launchAll() {
         console.log('[LaunchAll] 9 roket tek istekte yazıldı');
     } catch (e) {
         console.error('[LaunchAll] Batch başarısız, tek tek yazılıyor:', e);
-        // Yedek plan: batch başarısız olursa paralel yaz
         await Promise.all(
             Array.from({ length: rocketCount }, (_, i) =>
                 db.collection('rockets').doc(`rocket${i}`).set({
@@ -570,24 +569,28 @@ async function resetAll() {
     await stopAll();
 }
 
-// ==== GERİ SAYIM (Master) ====
+// ==== GERİ SAYIM (Master) — 5'ten başlar ====
 const activeCountdowns = {};
 function runCountdown(id) {
     if (activeCountdowns[id]) return;
     activeCountdowns[id] = true;
-    let count = 3;
+    let count = 5; // 5'ten başla
     playWarningSound();
-    speak(LANG[currentLang].speech[0]);
+    speak(LANG[currentLang].speech[0]); // "Beş" / "Five"
 
     const tick = () => {
         if (count > 1) {
             count--;
-            speak(LANG[currentLang].speech[3 - count]);
+            // count=4 → speech[1]="Dört", count=3 → speech[2]="Üç", count=2 → speech[3]="İki", count=1 → speech[4]="Bir"
+            const speechIdx = 5 - count;
+            if (speechIdx >= 0 && speechIdx < 5) {
+                speak(LANG[currentLang].speech[speechIdx]);
+            }
             playWarningSound();
             setTimeout(tick, 1000);
         } else {
             setTimeout(async () => {
-                speak(LANG[currentLang].speech[3]);
+                speak(LANG[currentLang].speech[5]); // "Ateş!"
                 playLaunchSound();
                 try {
                     await db.collection('rockets').doc(`rocket${id}`).set({

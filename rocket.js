@@ -960,47 +960,28 @@ class Rocket {
         ctx.fillStyle = 'rgba(255,255,255,0.5)';
         ctx.beginPath(); ctx.arc(-w*0.05, -h*0.15, w*0.05, 0, Math.PI*2); ctx.fill();
 
-        // ==== LOGO RESMİ (roket gövdesinin ortasında, ŞEFFAF) ====
+        // ==== LOGO RESMİ (roket gövdesinin ortasında, biraz yukarıda) ====
         if (logoImage && logoImage.complete && logoImage.naturalWidth > 0) {
             const logoSize = w * 0.6;
             const logoX = -logoSize / 2;
-            const logoY = h * 0.03;
-            // Sadece logo çizilir — arka plan YOK
+            const logoY = -h * 0.05;
             ctx.drawImage(logoImage, logoX, logoY, logoSize, logoSize);
         }
 
-        // ==== "KidZania" YAZISI — GÖVDENİN SAĞ TARAFINDA ====
+        // ==== "KidZania İstanbul" YAZISI — LOGONUN ALTINDA (tek satır, ortada) ====
         ctx.save();
         ctx.fillStyle = 'rgba(255, 255, 255, 1)';
-        ctx.font = 'bold 11px Arial';
-        ctx.textAlign = 'right';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.shadowColor = 'rgba(0, 0, 0, 1)';
-        ctx.shadowBlur = 3;
+        ctx.shadowBlur = 4;
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 0;
-        // Gövdenin sağ tarafına yerleştir (gövde sınırı w*0.3)
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
-        ctx.lineWidth = 2.5;
-        ctx.strokeText('KidZania', w * 0.28, -h * 0.28);
-        ctx.fillText('KidZania', w * 0.28, -h * 0.28);
-        ctx.restore();
-
-        // ==== "İstanbul" YAZISI — GÖVDENİN SOL TARAFINDA ====
-        ctx.save();
-        ctx.fillStyle = 'rgba(255, 255, 255, 1)';
-        ctx.font = 'bold 11px Arial';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0, 0, 0, 1)';
-        ctx.shadowBlur = 3;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-        // Gövdenin sol tarafına yerleştir
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
-        ctx.lineWidth = 2.5;
-        ctx.strokeText('İstanbul', -w * 0.28, -h * 0.28);
-        ctx.fillText('İstanbul', -w * 0.28, -h * 0.28);
+        ctx.lineWidth = 3;
+        ctx.strokeText('KidZania İstanbul', 0, h * 0.33);
+        ctx.fillText('KidZania İstanbul', 0, h * 0.33);
         ctx.restore();
 
         // Alev

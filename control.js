@@ -26,6 +26,11 @@ const ROCKETS = [
 const rocketCount = 9;
 const MASTER_PASSWORD = '230998';
 
+// ==== OTOMATİK ATEŞLEME AYARLARI ====
+const AUTO_LAUNCH_DELAY_MS = 15000; // 15 saniye
+let autoLaunchTimer = null;
+let autoLaunchCountdownInterval = null;
+
 // ==== ÇEVİRİLER ====
 const LANG = {
     tr: {
@@ -51,7 +56,11 @@ const LANG = {
         voiceDenied: 'Mikrofon izni verilmedi',
         voiceNotSupported: 'Tarayıcı desteklemiyor (Chrome/Edge kullanın)',
         voiceHint: 'Örn: "Tümünü ateşle" veya "Roket 1 ateşle"',
-        voiceHeardAny: 'Duyulan'
+        voiceHeardAny: 'Duyulan',
+        autoLaunchStart: 'roket 15 saniye içinde otomatik ateşlenecek',
+        autoLaunchCancel: 'Otomatik ateşleme iptal edildi',
+        autoLaunchFired: 'roket otomatik ateşlendi!',
+        autoLaunchCountdown: 'Otomatik ateşlemeye kalan'
     },
     en: {
         title: '🚀 ROCKET CONTROL CENTER',
@@ -76,7 +85,11 @@ const LANG = {
         voiceDenied: 'Microphone permission denied',
         voiceNotSupported: 'Browser not supported (use Chrome/Edge)',
         voiceHint: 'Ex: "Launch all" or "Rocket 1 launch"',
-        voiceHeardAny: 'Heard'
+        voiceHeardAny: 'Heard',
+        autoLaunchStart: 'rockets will auto-launch in 15 seconds',
+        autoLaunchCancel: 'Auto-launch cancelled',
+        autoLaunchFired: 'rockets auto-launched!',
+        autoLaunchCountdown: 'Auto-launch in'
     }
 };
 let currentLang = 'tr';
@@ -477,6 +490,145 @@ function updateClock() {
 }
 setInterval(updateClock, 1000); updateClock();
 
+// ==== OTOMATİK ATEŞLEME ====
+// Bir roket ateşlendiğinde 15 saniye içinde diğerlerine dokunulmazsa kalan idle roketler otomatik ateşlenir
+function startAutoLaunchTimer() {
+    // Önceki timer'ı iptal et (varsa)
+    if (autoLaunchTimer) {
+        clearTimeout(autoLaunchTimer);
+        autoLaunchTimer = null;
+    }
+    if (autoLaunchCountdownInterval) {
+        clearInterval(autoLaunchCountdownInterval);
+        autoLaunchCountdownInterval = null;
+    }
+    
+    let secondsLeft = Math.ceil(AUTO_LAUNCH_DELAY_MS / 1000);
+    const initialSeconds = secondsLeft;
+    
+    // Sayaç başlangıcı bilgilendirmesi
+    updateAutoLaunchIndicator(secondsLeft, initialSeconds);
+    
+    // Her saniye güncelle
+    autoLaunchCountdownInterval = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft > 0) {
+            updateAutoLaunchIndicator(secondsLeft, initialSeconds);
+        }
+    }, 1000);
+    
+    // Timer
+    autoLaunchTimer = setTimeout(async () => {
+        autoLaunchTimer = null;
+        if (autoLaunchCountdownInterval) {
+            clearInterval(autoLaunchCountdownInterval);
+            autoLaunchCountdownInterval = null;
+        }
+        hideAutoLaunchIndicator();
+        await autoLaunchRemainingRockets();
+    }, AUTO_LAUNCH_DELAY_MS);
+}
+
+function cancelAutoLaunchTimer(silent = false) {
+    if (autoLaunchTimer) {
+        clearTimeout(autoLaunchTimer);
+        autoLaunchTimer = null;
+    }
+    if (autoLaunchCountdownInterval) {
+        clearInterval(autoLaunchCountdownInterval);
+        autoLaunchCountdownInterval = null;
+    }
+    hideAutoLaunchIndicator();
+    if (!silent) {
+        console.log('[AutoLaunch] Timer iptal edildi');
+    }
+}
+
+// Durum kontrolü — her roket değişikliğinde çağrılır
+function checkAutoLaunch() {
+    // Durumları say
+    let activeCount = 0;
+    let idleCount = 0;
+    
+    for (let i = 0; i < rocketCount; i++) {
+        const st = lastKnownStatuses[i];
+        if (st === 'idle') idleCount++;
+        else if (st) activeCount++; // countdown / launching / launched
+    }
+    
+    // Hepsi idle veya hepsi aktif → timer'ı iptal et
+    if (idleCount === 0 || activeCount === 0) {
+        if (autoLaunchTimer) {
+            cancelAutoLaunchTimer(true);
+            console.log(`[AutoLaunch] İptal edildi. Aktif: ${activeCount}, Idle: ${idleCount}`);
+        }
+        return;
+    }
+    
+    // En az 1 aktif, en az 1 idle var → timer başlat veya sıfırla
+    console.log(`[AutoLaunch] Timer başlatılıyor. Aktif: ${activeCount}, Idle: ${idleCount}`);
+    startAutoLaunchTimer();
+}
+
+// Ekranda gösterge (toast benzeri)
+function updateAutoLaunchIndicator(secondsLeft, totalSeconds) {
+    const el = document.getElementById('voice-toast');
+    if (!el) return;
+    // Progress bar yerine basit metin
+    el.textContent = `🤖 ${t('autoLaunchCountdown')}: ${secondsLeft}s`;
+    el.className = 'voice-toast show';
+    // İlk 5 saniyede yeşil, sonra turuncu, son 3 saniyede kırmızı
+    if (secondsLeft <= 3) {
+        el.classList.add('error-toast');
+    } else if (secondsLeft <= 7) {
+        el.classList.add('not-matched');
+    }
+    clearTimeout(el._timeout);
+    el._timeout = setTimeout(() => el.classList.remove('show'), 2000);
+}
+function hideAutoLaunchIndicator() {
+    const el = document.getElementById('voice-toast');
+    if (el) el.classList.remove('show');
+}
+
+// Kalan idle roketleri otomatik ateşle
+async function autoLaunchRemainingRockets() {
+    // Hâlâ idle olanları topla
+    const idleRockets = [];
+    for (let i = 0; i < rocketCount; i++) {
+        if (lastKnownStatuses[i] === 'idle') idleRockets.push(i);
+    }
+    
+    if (idleRockets.length === 0) {
+        console.log('[AutoLaunch] Idle roket kalmadı, atlanıyor');
+        return;
+    }
+    
+    console.log(`[AutoLaunch] ${idleRockets.length} roket otomatik ateşleniyor:`, idleRockets);
+    
+    const gid = `auto_${Date.now()}`;
+    const batch = db.batch();
+    
+    for (const i of idleRockets) {
+        const ref = db.collection('rockets').doc(`rocket${i}`);
+        batch.set(ref, {
+            planet: ROCKETS[i].planet,
+            name: ROCKETS[i].name,
+            status: 'countdown',
+            groupId: gid,
+            countdownStart: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    }
+    
+    try {
+        await batch.commit();
+        playSuccessSound();
+        showVoiceToast(`🤖 ${idleRockets.length} ${t('autoLaunchFired')}`, 'ok');
+    } catch (e) {
+        console.warn('[AutoLaunch] Batch hatası:', e);
+    }
+}
+
 // ==== FIRESTORE — TEK ROKET ====
 async function startCountdown(id, groupId) {
     playClickSound();
@@ -511,6 +663,7 @@ async function resetRocket(id) {
 // ==== FIRESTORE — TOPLU İŞLEMLER (BATCH) ====
 async function launchAll() {
     playSuccessSound();
+    cancelAutoLaunchTimer(true); // Toplu ateşlemede otomatik timer'a gerek yok
     const gid = `group_${Date.now()}`;
     const batch = db.batch();
 
@@ -546,6 +699,7 @@ async function launchAll() {
 
 async function stopAll() {
     playBeep(400, 0.2, 0.25);
+    cancelAutoLaunchTimer(true);
     const batch = db.batch();
     for (let i = 0; i < rocketCount; i++) {
         const ref = db.collection('rockets').doc(`rocket${i}`);
@@ -566,6 +720,7 @@ async function stopAll() {
 
 async function resetAll() {
     playClickSound();
+    cancelAutoLaunchTimer(true);
     await stopAll();
 }
 
@@ -574,14 +729,13 @@ const activeCountdowns = {};
 function runCountdown(id) {
     if (activeCountdowns[id]) return;
     activeCountdowns[id] = true;
-    let count = 5; // 5'ten başla
+    let count = 5;
     playWarningSound();
-    speak(LANG[currentLang].speech[0]); // "Beş" / "Five"
+    speak(LANG[currentLang].speech[0]);
 
     const tick = () => {
         if (count > 1) {
             count--;
-            // count=4 → speech[1]="Dört", count=3 → speech[2]="Üç", count=2 → speech[3]="İki", count=1 → speech[4]="Bir"
             const speechIdx = 5 - count;
             if (speechIdx >= 0 && speechIdx < 5) {
                 speak(LANG[currentLang].speech[speechIdx]);
@@ -590,7 +744,7 @@ function runCountdown(id) {
             setTimeout(tick, 1000);
         } else {
             setTimeout(async () => {
-                speak(LANG[currentLang].speech[5]); // "Ateş!"
+                speak(LANG[currentLang].speech[5]);
                 playLaunchSound();
                 try {
                     await db.collection('rockets').doc(`rocket${id}`).set({
@@ -617,6 +771,8 @@ function listenToRockets() {
             updateRocketUI(id, data.status);
             if (data.status === 'countdown') runCountdown(id);
         });
+        // Her snapshot sonrası otomatik ateşleme kontrolü
+        checkAutoLaunch();
     });
 }
 function updateRocketUI(id, status) {

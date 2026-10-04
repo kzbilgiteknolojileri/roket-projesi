@@ -494,36 +494,39 @@ setInterval(updateClock, 1000); updateClock();
 // Bir roket ateşlendiğinde 15 saniye içinde diğerlerine dokunulmazsa kalan idle roketler otomatik ateşlenir
 // SADECE BİR KEZ çalışır (tüm roketler sıfırlanınca yeniden aktif olur)
 function startAutoLaunchTimer() {
-    if (autoLaunchTimer) {
-        clearTimeout(autoLaunchTimer);
-        autoLaunchTimer = null;
-    }
-    if (autoLaunchCountdownInterval) {
-        clearInterval(autoLaunchCountdownInterval);
-        autoLaunchCountdownInterval = null;
+    if (autoLaunchCheckInterval) {
+        clearInterval(autoLaunchCheckInterval);
+        autoLaunchCheckInterval = null;
     }
     
-    let secondsLeft = Math.ceil(AUTO_LAUNCH_DELAY_MS / 1000);
-    const initialSeconds = secondsLeft;
+    autoLaunchStartedAt = Date.now();
+    const initialSeconds = Math.ceil(AUTO_LAUNCH_DELAY_MS / 1000);
     
-    updateAutoLaunchIndicator(secondsLeft, initialSeconds);
+    updateAutoLaunchIndicator(initialSeconds, initialSeconds);
+    console.log(`[AutoLaunch] Timer başladı: ${initialSeconds}sn`);
     
-    autoLaunchCountdownInterval = setInterval(() => {
-        secondsLeft--;
-        if (secondsLeft > 0) {
+    // Her 500ms'de kontrol et — setTimeout arka planda kısıtlanır ama setInterval + Date.now() güvenilirdir
+    autoLaunchCheckInterval = setInterval(async () => {
+        if (!autoLaunchStartedAt) {
+            clearInterval(autoLaunchCheckInterval);
+            autoLaunchCheckInterval = null;
+            return;
+        }
+        const elapsed = Date.now() - autoLaunchStartedAt;
+        const remaining = AUTO_LAUNCH_DELAY_MS - elapsed;
+        
+        if (remaining <= 0) {
+            clearInterval(autoLaunchCheckInterval);
+            autoLaunchCheckInterval = null;
+            autoLaunchStartedAt = null;
+            hideAutoLaunchIndicator();
+            console.log('[AutoLaunch] Süre doldu, ateşleme başlıyor');
+            await autoLaunchRemainingRockets();
+        } else {
+            const secondsLeft = Math.ceil(remaining / 1000);
             updateAutoLaunchIndicator(secondsLeft, initialSeconds);
         }
-    }, 1000);
-    
-    autoLaunchTimer = setTimeout(async () => {
-        autoLaunchTimer = null;
-        if (autoLaunchCountdownInterval) {
-            clearInterval(autoLaunchCountdownInterval);
-            autoLaunchCountdownInterval = null;
-        }
-        hideAutoLaunchIndicator();
-        await autoLaunchRemainingRockets();
-    }, AUTO_LAUNCH_DELAY_MS);
+    }, 500);
 }
 
 function cancelAutoLaunchTimer(silent = false) {

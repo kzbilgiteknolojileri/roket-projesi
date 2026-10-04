@@ -28,10 +28,9 @@ const MASTER_PASSWORD = '230998';
 
 // ==== OTOMATİK ATEŞLEME AYARLARI ====
 const AUTO_LAUNCH_DELAY_MS = 15000; // 15 saniye
-let autoLaunchTimer = null;
-let autoLaunchCountdownInterval = null;
-let autoLaunchFired = false; // Bu turda otomatik ateşleme yapıldı mı?
-
+let autoLaunchCheckInterval = null;
+let autoLaunchStartedAt = null;   // Timer başladığı an (timestamp)
+let autoLaunchFired = false;      // Bu turda otomatik ateşleme yapıldı mı?
 // ==== ÇEVİRİLER ====
 const LANG = {
     tr: {

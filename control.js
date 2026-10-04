@@ -31,6 +31,7 @@ const AUTO_LAUNCH_DELAY_MS = 15000; // 15 saniye
 let autoLaunchCheckInterval = null;
 let autoLaunchStartedAt = null;   // Timer başladığı an (timestamp)
 let autoLaunchFired = false;      // Bu turda otomatik ateşleme yapıldı mı?
+
 // ==== ÇEVİRİLER ====
 const LANG = {
     tr: {
@@ -491,8 +492,9 @@ function updateClock() {
 setInterval(updateClock, 1000); updateClock();
 
 // ==== OTOMATİK ATEŞLEME ====
-// Bir roket ateşlendiğinde 15 saniye içinde diğerlerine dokunulmazsa kalan idle roketler otomatik ateşlenir
-// SADECE BİR KEZ çalışır (tüm roketler sıfırlanınca yeniden aktif olur)
+// Bir roket ateşlendiğinde 15 saniye içinde diğerlerine dokunulmazsa kalan idle roketler otomatik ateşlenir.
+// - setInterval + Date.now() kullanır → arka planda da doğru çalışır
+// - SADECE BİR KEZ tetiklenir (tüm roketler sıfırlanınca yeniden aktif olur)
 function startAutoLaunchTimer() {
     if (autoLaunchCheckInterval) {
         clearInterval(autoLaunchCheckInterval);
@@ -530,19 +532,32 @@ function startAutoLaunchTimer() {
 }
 
 function cancelAutoLaunchTimer(silent = false) {
-    if (autoLaunchTimer) {
-        clearTimeout(autoLaunchTimer);
-        autoLaunchTimer = null;
+    if (autoLaunchCheckInterval) {
+        clearInterval(autoLaunchCheckInterval);
+        autoLaunchCheckInterval = null;
     }
-    if (autoLaunchCountdownInterval) {
-        clearInterval(autoLaunchCountdownInterval);
-        autoLaunchCountdownInterval = null;
-    }
+    autoLaunchStartedAt = null;
     hideAutoLaunchIndicator();
     if (!silent) {
         console.log('[AutoLaunch] Timer iptal edildi');
     }
 }
+
+// Sayfa görünürlüğü değiştiğinde kontrol et
+// (Arka plandan öne döndüğünde süre dolmuşsa hemen tetikle)
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && autoLaunchStartedAt) {
+        const elapsed = Date.now() - autoLaunchStartedAt;
+        if (elapsed >= AUTO_LAUNCH_DELAY_MS) {
+            if (autoLaunchCheckInterval) clearInterval(autoLaunchCheckInterval);
+            autoLaunchCheckInterval = null;
+            autoLaunchStartedAt = null;
+            hideAutoLaunchIndicator();
+            console.log('[AutoLaunch] Sayfa öne geldi, süre dolmuş → hemen ateşleniyor');
+            autoLaunchRemainingRockets();
+        }
+    }
+});
 
 // Durum kontrolü — her roket değişikliğinde çağrılır
 function checkAutoLaunch() {
@@ -558,13 +573,13 @@ function checkAutoLaunch() {
     // HEPİSİ IDLE → flag'i sıfırla (yeni tura hazır)
     if (idleCount === rocketCount) {
         autoLaunchFired = false;
-        if (autoLaunchTimer) cancelAutoLaunchTimer(true);
+        if (autoLaunchCheckInterval) cancelAutoLaunchTimer(true);
         return;
     }
     
     // Hepsi aktif → timer'ı iptal et
     if (idleCount === 0) {
-        if (autoLaunchTimer) cancelAutoLaunchTimer(true);
+        if (autoLaunchCheckInterval) cancelAutoLaunchTimer(true);
         return;
     }
     
@@ -573,8 +588,8 @@ function checkAutoLaunch() {
         return;
     }
     
-    // Timer zaten çalışıyorsa → sıfırlama, sadece bekle
-    if (autoLaunchTimer) {
+    // Timer zaten çalışıyorsa → dokunma, sadece bekle
+    if (autoLaunchCheckInterval) {
         return;
     }
     

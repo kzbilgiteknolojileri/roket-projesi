@@ -30,6 +30,7 @@ const MASTER_PASSWORD = '230998';
 const AUTO_LAUNCH_DELAY_MS = 15000; // 15 saniye
 let autoLaunchTimer = null;
 let autoLaunchCountdownInterval = null;
+let autoLaunchFired = false; // Bu turda otomatik ateşleme yapıldı mı?
 
 // ==== ÇEVİRİLER ====
 const LANG = {
@@ -492,8 +493,8 @@ setInterval(updateClock, 1000); updateClock();
 
 // ==== OTOMATİK ATEŞLEME ====
 // Bir roket ateşlendiğinde 15 saniye içinde diğerlerine dokunulmazsa kalan idle roketler otomatik ateşlenir
+// SADECE BİR KEZ çalışır (tüm roketler sıfırlanınca yeniden aktif olur)
 function startAutoLaunchTimer() {
-    // Önceki timer'ı iptal et (varsa)
     if (autoLaunchTimer) {
         clearTimeout(autoLaunchTimer);
         autoLaunchTimer = null;
@@ -506,10 +507,8 @@ function startAutoLaunchTimer() {
     let secondsLeft = Math.ceil(AUTO_LAUNCH_DELAY_MS / 1000);
     const initialSeconds = secondsLeft;
     
-    // Sayaç başlangıcı bilgilendirmesi
     updateAutoLaunchIndicator(secondsLeft, initialSeconds);
     
-    // Her saniye güncelle
     autoLaunchCountdownInterval = setInterval(() => {
         secondsLeft--;
         if (secondsLeft > 0) {
@@ -517,7 +516,6 @@ function startAutoLaunchTimer() {
         }
     }, 1000);
     
-    // Timer
     autoLaunchTimer = setTimeout(async () => {
         autoLaunchTimer = null;
         if (autoLaunchCountdownInterval) {
@@ -546,38 +544,48 @@ function cancelAutoLaunchTimer(silent = false) {
 
 // Durum kontrolü — her roket değişikliğinde çağrılır
 function checkAutoLaunch() {
-    // Durumları say
     let activeCount = 0;
     let idleCount = 0;
     
     for (let i = 0; i < rocketCount; i++) {
         const st = lastKnownStatuses[i];
         if (st === 'idle') idleCount++;
-        else if (st) activeCount++; // countdown / launching / launched
+        else if (st) activeCount++;
     }
     
-    // Hepsi idle veya hepsi aktif → timer'ı iptal et
-    if (idleCount === 0 || activeCount === 0) {
-        if (autoLaunchTimer) {
-            cancelAutoLaunchTimer(true);
-            console.log(`[AutoLaunch] İptal edildi. Aktif: ${activeCount}, Idle: ${idleCount}`);
-        }
+    // HEPİSİ IDLE → flag'i sıfırla (yeni tura hazır)
+    if (idleCount === rocketCount) {
+        autoLaunchFired = false;
+        if (autoLaunchTimer) cancelAutoLaunchTimer(true);
         return;
     }
     
-    // En az 1 aktif, en az 1 idle var → timer başlat veya sıfırla
+    // Hepsi aktif → timer'ı iptal et
+    if (idleCount === 0) {
+        if (autoLaunchTimer) cancelAutoLaunchTimer(true);
+        return;
+    }
+    
+    // Bu turda zaten otomatik ateşleme yapıldıysa → tekrar başlatma
+    if (autoLaunchFired) {
+        return;
+    }
+    
+    // Timer zaten çalışıyorsa → sıfırlama, sadece bekle
+    if (autoLaunchTimer) {
+        return;
+    }
+    
+    // En az 1 aktif, en az 1 idle var → timer başlat
     console.log(`[AutoLaunch] Timer başlatılıyor. Aktif: ${activeCount}, Idle: ${idleCount}`);
     startAutoLaunchTimer();
 }
 
-// Ekranda gösterge (toast benzeri)
 function updateAutoLaunchIndicator(secondsLeft, totalSeconds) {
     const el = document.getElementById('voice-toast');
     if (!el) return;
-    // Progress bar yerine basit metin
     el.textContent = `🤖 ${t('autoLaunchCountdown')}: ${secondsLeft}s`;
     el.className = 'voice-toast show';
-    // İlk 5 saniyede yeşil, sonra turuncu, son 3 saniyede kırmızı
     if (secondsLeft <= 3) {
         el.classList.add('error-toast');
     } else if (secondsLeft <= 7) {
@@ -593,7 +601,8 @@ function hideAutoLaunchIndicator() {
 
 // Kalan idle roketleri otomatik ateşle
 async function autoLaunchRemainingRockets() {
-    // Hâlâ idle olanları topla
+    autoLaunchFired = true; // Bir kez tetiklendi olarak işaretle
+    
     const idleRockets = [];
     for (let i = 0; i < rocketCount; i++) {
         if (lastKnownStatuses[i] === 'idle') idleRockets.push(i);
@@ -663,7 +672,8 @@ async function resetRocket(id) {
 // ==== FIRESTORE — TOPLU İŞLEMLER (BATCH) ====
 async function launchAll() {
     playSuccessSound();
-    cancelAutoLaunchTimer(true); // Toplu ateşlemede otomatik timer'a gerek yok
+    cancelAutoLaunchTimer(true);
+    autoLaunchFired = true; // Tümü ateşlendiği için otomatik tetiklemeyi kapat
     const gid = `group_${Date.now()}`;
     const batch = db.batch();
 
@@ -721,6 +731,7 @@ async function stopAll() {
 async function resetAll() {
     playClickSound();
     cancelAutoLaunchTimer(true);
+    autoLaunchFired = false; // Yeni tura hazırla
     await stopAll();
 }
 
@@ -771,7 +782,6 @@ function listenToRockets() {
             updateRocketUI(id, data.status);
             if (data.status === 'countdown') runCountdown(id);
         });
-        // Her snapshot sonrası otomatik ateşleme kontrolü
         checkAutoLaunch();
     });
 }

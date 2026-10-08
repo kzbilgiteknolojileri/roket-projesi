@@ -12,15 +12,15 @@ const PLANETS = {
 };
 
 const ROCKETS = [
-    { name: 'Saturn V',       planet: 'Merkür',  mass: 2970000, thrust: 35100 },
-    { name: 'Falcon 9',       planet: 'Venüs',   mass: 549054,  thrust: 7607  },
-    { name: 'Ariane 5',       planet: 'Dünya',   mass: 777000,  thrust: 13000 },
-    { name: 'Soyuz-FG',       planet: 'Mars',    mass: 305000,  thrust: 4000  },
-    { name: 'Long March 5',   planet: 'Jüpiter', mass: 867000,  thrust: 10565 },
-    { name: 'H-IIA',          planet: 'Satürn',  mass: 289000,  thrust: 4000  },
-    { name: 'Delta IV Heavy', planet: 'Uranüs',  mass: 733000,  thrust: 9480  },
-    { name: 'Proton-M',       planet: 'Neptün',  mass: 705000,  thrust: 10532 },
-    { name: 'Electron',       planet: 'Plüton',  mass: 13000,   thrust: 162   }
+    { name: 'MESSENGER',       planet: 'Merkür',  mass: 1100,  thrust: 660   },
+    { name: 'MAGELLAN',        planet: 'Venüs',   mass: 3447,  thrust: 4400  },
+    { name: 'LANDSAT 9',       planet: 'Dünya',   mass: 2711,  thrust: 4700  },
+    { name: 'PERSEVERANCE',    planet: 'Mars',    mass: 1025,  thrust: 4000  },
+    { name: 'JUNO',            planet: 'Jüpiter', mass: 3625,  thrust: 4500  },
+    { name: 'CASSINI-HUYGENS', planet: 'Satürn',  mass: 5712,  thrust: 4400  },
+    { name: 'VOYAGER 2',       planet: 'Uranüs',  mass: 825,   thrust: 4200  },
+    { name: 'VOYAGER 2',       planet: 'Neptün',  mass: 825,   thrust: 4200  },
+    { name: 'NEW HORIZONS',    planet: 'Plüton',  mass: 478,   thrust: 4400  }
 ];
 
 const rocketCount = 9;
@@ -177,15 +177,15 @@ const EN_NUMS = {
 };
 
 const ROCKET_ALIASES = {
-    0: ['saturn v', 'saturn bes', 'saturn beş', 'saturn 5', 'saturn'],
-    1: ['falcon 9', 'falcon nine', 'falcon dokuz', 'falcon'],
-    2: ['ariane 5', 'ariane bes', 'ariane beş', 'ariane'],
-    3: ['soyuz fg', 'soyuz', 'soyuz f g'],
-    4: ['long march 5', 'long march bes', 'long march beş', 'long march'],
-    5: ['h iia', 'h i i a', 'h 2 a', 'h2a'],
-    6: ['delta iv heavy', 'delta 4 heavy', 'delta heavy', 'delta'],
-    7: ['proton m', 'proton'],
-    8: ['electron']
+    0: ['messenger', 'mercury messenger'],
+    1: ['magellan'],
+    2: ['landsat', 'landsat 9', 'landsat dokuz'],
+    3: ['perseverance', 'perseverance rover'],
+    4: ['juno'],
+    5: ['cassini', 'cassini huygens', 'cassini-huygens'],
+    6: ['voyager uranus', 'voyager 2 uranus'],
+    7: ['voyager neptun', 'voyager neptune', 'voyager 2 neptun'],
+    8: ['new horizons', 'new horizons pluto']
 };
 
 function normalizeText(text) {

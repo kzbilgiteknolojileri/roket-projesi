@@ -1,0 +1,47 @@
+vercel+firebase
+
+kzbilgiteknolojileri@gmail.com
+itkz2026
+
+
+
+https://roket-projesi.vercel.app/
+https://roket-projesi.vercel.app/rocket.html?id=0
+
+
+-----------------SESLİ DENETİM AKTİFLEŞTİRMEK İÇİN-----------------------
+
+1 - Dosyalar içindeki index.html'yi açın.
+
+2 - <div id="control-panel" style="display: none;"> kod bloğunu bulun.
+
+3 - Bulduğunuz kod bloğunu tamamen silip alttakini yapıştırın;
+    <div id="control-panel" style="display: none;">
+        <div class="panel-header">
+            <div class="live-badge">
+                <span class="live-dot"></span><span id="live-text">CANLI YAYIN</span>
+            </div>
+            <h1 id="header-title">🚀 ROKET KONTROL MERKEZİ</h1>
+            <div class="header-right">
+ -SES BUTONU KODU-  <button id="voice-btn" class="voice-btn" title="Sesli denetimi aç/kapat">	-SES BUTONU KODU-
+ -SES BUTONU KODU-  <span class="voice-icon">🎤</span>						-SES BUTONU KODU-
+ -SES BUTONU KODU-  <span class="voice-text" id="voice-text">SESLİ DENETİM</span>		-SES BUTONU KODU-
+ -SES BUTONU KODU-  </button>									-SES BUTONU KODU-
+                <div class="lang-switch">
+                    <button class="lang-btn active" data-lang="tr" id="lang-tr">TR</button>
+                    <button class="lang-btn" data-lang="en" id="lang-en">EN</button>
+                </div>
+                <div class="header-time" id="header-time">--:--</div>
+            </div>
+        </div>
+
+4 - Dosyalar içindeki rocket.html'yi açın.
+5 - <div id="local-controls"> kod bloğunu bulun.
+6 - Bulduğunuz kod bloğunu tamamen silip alttakini yapıştırın;
+		<div id="local-controls">
+-SES BUTONU KODU-	<button id="voice-btn" class="local-btn voice">🎤 SESLİ DENETİM</button>		-SES BUTONU KODU-
+       			<button id="launch-btn" class="local-btn launch">🚀 ATEŞLE</button>
+       			<button id="reset-btn" class="local-btn reset">🔄 SIFIRLA</button>
+   		 </div>
+7 - Kodların güncel halini GİTHUB'a yüklemeyi unutmayın.
+-----------------SESLİ DENETİM AKTİFLEŞTİRMEK İÇİN-----------------------

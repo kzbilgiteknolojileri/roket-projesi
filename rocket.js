@@ -50,15 +50,15 @@ const ANIMATION_DURATIONS = {
 const animDuration = ANIMATION_DURATIONS[currentRocket.planet] || 20;
 
 const ALL_ALIASES = {
-    0: ['saturn v', 'saturn bes', 'saturn beş', 'saturn 5', 'saturn'],
-    1: ['falcon 9', 'falcon nine', 'falcon dokuz', 'falcon'],
-    2: ['ariane 5', 'ariane bes', 'ariane beş', 'ariane'],
-    3: ['soyuz fg', 'soyuz'],
-    4: ['long march 5', 'long march bes', 'long march beş', 'long march'],
-    5: ['h iia', 'h i i a', 'h 2 a', 'h2a'],
-    6: ['delta iv heavy', 'delta 4 heavy', 'delta heavy', 'delta'],
-    7: ['proton m', 'proton'],
-    8: ['electron']
+    0: ['messenger', 'mercury messenger'],
+    1: ['magellan'],
+    2: ['landsat', 'landsat 9', 'landsat dokuz'],
+    3: ['perseverance', 'perseverance rover'],
+    4: ['juno'],
+    5: ['cassini', 'cassini huygens', 'cassini-huygens'],
+    6: ['voyager uranus', 'voyager 2 uranus'],
+    7: ['voyager neptun', 'voyager neptune', 'voyager 2 neptun'],
+    8: ['new horizons', 'new horizons pluto']
 };
 const MY_ALIASES = ALL_ALIASES[rocketId] || [];
 
